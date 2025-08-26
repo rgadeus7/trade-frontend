@@ -3,87 +3,111 @@
 import { useState, useEffect } from 'react'
 import Header from '@/components/Header'
 import Sidebar from '@/components/Sidebar'
-import PortfolioOverview from '@/components/PortfolioOverview'
-import MarketWatch from '@/components/MarketWatch'
-import TradingChart from '@/components/TradingChart'
-import RecentTrades from '@/components/RecentTrades'
-import NewsFeed from '@/components/NewsFeed'
-import { mockPortfolioData, mockMarketData, mockTradeData, mockNewsData } from '@/data/mockData'
+import SignalDashboard from '@/components/SignalDashboard'
 
 export default function Dashboard() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true)
-  const [portfolioData, setPortfolioData] = useState(mockPortfolioData)
-  const [marketData, setMarketData] = useState(mockMarketData)
-  const [tradeData, setTradeData] = useState(mockTradeData)
-  const [newsData, setNewsData] = useState(mockNewsData)
+  const [apiToken, setApiToken] = useState<string | null>(null)
 
-  // Simulate real-time updates
   useEffect(() => {
-    const interval = setInterval(() => {
-      // Update portfolio values with small random changes
-      setPortfolioData(prev => ({
-        ...prev,
-        totalValue: prev.totalValue * (1 + (Math.random() - 0.5) * 0.02),
-        dailyChange: prev.dailyChange * (1 + (Math.random() - 0.5) * 0.1),
-        positions: prev.positions.map(pos => ({
-          ...pos,
-          currentPrice: pos.currentPrice * (1 + (Math.random() - 0.5) * 0.01),
-          change: pos.change * (1 + (Math.random() - 0.5) * 0.1)
-        }))
-      }))
-
-      // Update market data
-      setMarketData(prev => ({
-        ...prev,
-        indices: prev.indices.map(index => ({
-          ...index,
-          value: index.value * (1 + (Math.random() - 0.5) * 0.005),
-          change: index.change * (1 + (Math.random() - 0.5) * 0.1)
-        }))
-      }))
-    }, 5000) // Update every 5 seconds
-
-    return () => clearInterval(interval)
+    // Check if user is authenticated (has access token)
+    const urlParams = new URLSearchParams(window.location.search)
+    const accessToken = urlParams.get('access_token')
+    const token = urlParams.get('token') // Direct API token
+    
+    if (accessToken) {
+      // Store token securely (in production, use proper state management)
+      localStorage.setItem('tradestation_access_token', accessToken)
+      // Clean up URL
+      window.history.replaceState({}, document.title, window.location.pathname)
+    } else if (token) {
+      // Direct API token provided
+      setApiToken(token)
+      // Clean up URL
+      window.history.replaceState({}, document.title, window.location.pathname)
+    } else {
+      // Check if token exists in localStorage
+      const storedToken = localStorage.getItem('tradestation_access_token')
+      if (storedToken) {
+        setApiToken(storedToken)
+      }
+    }
   }, [])
+
+  const handleTradeStationLogin = () => {
+    window.location.href = '/api/auth/tradestation'
+  }
+
+  const handleLogout = () => {
+    localStorage.removeItem('tradestation_access_token')
+    setApiToken(null)
+  }
+
+  const handleDirectToken = () => {
+    const token = prompt('Enter your Trade Station API token:')
+    if (token) {
+      setApiToken(token)
+    }
+  }
 
   return (
     <div className="flex h-screen bg-gray-50">
       <Sidebar isOpen={isSidebarOpen} />
-      
       <div className="flex-1 flex flex-col overflow-hidden">
-        <Header 
-          onMenuClick={() => setIsSidebarOpen(!isSidebarOpen)}
-          portfolioData={portfolioData}
-        />
-        
+        <Header onMenuClick={() => setIsSidebarOpen(!isSidebarOpen)} />
         <main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-50 p-6">
           <div className="max-w-7xl mx-auto space-y-6">
-            {/* Portfolio Overview */}
-            <PortfolioOverview data={portfolioData} />
             
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              {/* Market Watch */}
-              <div className="lg:col-span-2">
-                <MarketWatch data={marketData} />
+            {/* Trade Station Authentication Banner */}
+            {!apiToken ? (
+              <div className="card bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200">
+                <div className="flex items-center justify-between p-6">
+                  <div>
+                    <h3 className="text-lg font-semibold text-blue-900">Connect to Trade Station</h3>
+                    <p className="text-blue-700">Get daily SPY, SPX, and ES market data with 89 EMA</p>
+                  </div>
+                  <div className="flex items-center space-x-3">
+                    <button
+                      onClick={handleDirectToken}
+                      className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-3 rounded-lg font-medium transition-colors"
+                    >
+                      Use API Token
+                    </button>
+                    <button
+                      onClick={handleTradeStationLogin}
+                      className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-medium transition-colors"
+                    >
+                      Connect Trade Station
+                    </button>
+                  </div>
+                </div>
               </div>
-              
-              {/* Recent Trades */}
-              <div>
-                <RecentTrades data={tradeData} />
+            ) : (
+              <div className="card bg-gradient-to-r from-green-50 to-emerald-50 border-green-200">
+                <div className="flex items-center justify-between p-6">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
+                    <div>
+                      <h3 className="text-lg font-semibold text-green-900">
+                        Connected with API Token
+                      </h3>
+                      <p className="text-green-700">
+                        Receiving daily market data with 89 EMA
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={handleLogout}
+                    className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+                  >
+                    Disconnect
+                  </button>
+                </div>
               </div>
-            </div>
-            
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              {/* Trading Chart */}
-              <div className="lg:col-span-2">
-                <TradingChart />
-              </div>
-              
-              {/* News Feed */}
-              <div>
-                <NewsFeed data={newsData} />
-              </div>
-            </div>
+            )}
+
+            {/* S&P Market Data Dashboard */}
+            <SignalDashboard apiToken={apiToken || undefined} />
           </div>
         </main>
       </div>

@@ -1,239 +1,234 @@
-# Trading Dashboard - Next.js Application
+# 🚀 S&P Market Signals Dashboard
 
-A comprehensive, real-time trading dashboard built with Next.js, TypeScript, and Tailwind CSS. This application provides professional-grade trading analytics, portfolio management, and market monitoring capabilities.
+A professional Next.js trading dashboard focused on **SPY**, **SPX**, and **ES Futures** with real-time market signals and technical analysis.
 
-## 🚀 Features
+## 🎯 **Features**
 
-### Core Functionality
-- **Real-time Portfolio Tracking** - Monitor your investment portfolio with live updates
-- **Market Watch** - Track major indices, top gainers, and losers
-- **Advanced Trading Charts** - Interactive charts with multiple timeframes and indicators
-- **Trade History** - Complete record of all trading activities
-- **News Feed** - Market news with sentiment analysis and impact assessment
+- **Real-time S&P Market Signals** for SPY, SPX, and ES
+- **Professional Trading Dashboard** with modern UI
+- **Trade Station API Integration** for live market data
+- **Technical Indicators**: RSI, MACD, Bollinger Bands, VIX
+- **Responsive Design** optimized for all devices
+- **OAuth 2.0 Authentication** with Trade Station
+- **Real-time Data Updates** every 15 seconds
+- **Signal Confidence Scoring** with risk alerts
 
-### Technical Features
-- **Responsive Design** - Optimized for desktop, tablet, and mobile devices
-- **Real-time Updates** - Simulated live data updates every 5 seconds
-- **Interactive Charts** - Built with Recharts for smooth data visualization
-- **Modern UI/UX** - Clean, professional interface with smooth animations
-- **TypeScript** - Full type safety and better development experience
-- **Tailwind CSS** - Utility-first CSS framework for rapid development
+## 🏦 **Broker Integration**
 
-### Dashboard Components
-- **Portfolio Overview** - Summary cards with allocation pie chart
-- **Market Indices** - S&P 500, NASDAQ, DOW JONES tracking
-- **Position Management** - Detailed view of all holdings
-- **Technical Indicators** - RSI, MACD, Bollinger Bands, Moving Averages
-- **Trade Execution** - Buy/sell order management
-- **News & Research** - Financial news with sentiment analysis
+This dashboard integrates with **Trade Station** for real market data:
 
-## 🛠️ Tech Stack
+- ✅ **SPY** - SPDR S&P 500 ETF Trust
+- ✅ **SPX** - S&P 500 Index (Cash)
+- ✅ **ES** - E-mini S&P 500 Futures
 
-- **Frontend Framework**: Next.js 14 with App Router
-- **Language**: TypeScript
-- **Styling**: Tailwind CSS
-- **Charts**: Recharts
-- **Icons**: Lucide React
-- **Animations**: Framer Motion
-- **Deployment**: Vercel
+## 🚀 **Quick Start**
 
-## 📦 Installation
-
-### Prerequisites
-- Node.js 18+ 
-- npm or yarn package manager
-
-### Setup Steps
-
-1. **Clone the repository**
-   ```bash
-   git clone <your-repo-url>
-   cd trading-dashboard
-   ```
-
-2. **Install dependencies**
-   ```bash
-   npm install
-   # or
-   yarn install
-   ```
-
-3. **Run the development server**
-   ```bash
-   npm run dev
-   # or
-   yarn dev
-   ```
-
-4. **Open your browser**
-   Navigate to [http://localhost:3000](http://localhost:3000)
-
-## 🚀 Deployment to Vercel
-
-### Option 1: Deploy via Vercel Dashboard
-
-1. **Push your code to GitHub**
-   ```bash
-   git add .
-   git commit -m "Initial commit"
-   git push origin main
-   ```
-
-2. **Connect to Vercel**
-   - Go to [vercel.com](https://vercel.com)
-   - Sign in with your GitHub account
-   - Click "New Project"
-   - Import your repository
-   - Vercel will automatically detect Next.js settings
-
-3. **Deploy**
-   - Click "Deploy"
-   - Vercel will build and deploy your application
-   - Your app will be available at `https://your-project.vercel.app`
-
-### Option 2: Deploy via Vercel CLI
-
-1. **Install Vercel CLI**
-   ```bash
-   npm i -g vercel
-   ```
-
-2. **Login to Vercel**
-   ```bash
-   vercel login
-   ```
-
-3. **Deploy**
-   ```bash
-   vercel
-   ```
-
-4. **Follow the prompts**
-   - Link to existing project or create new
-   - Set project name
-   - Choose team (if applicable)
-   - Deploy
-
-### Environment Variables (Optional)
-
-If you plan to integrate real APIs later, you can add environment variables in Vercel:
-
-1. Go to your project dashboard in Vercel
-2. Navigate to Settings → Environment Variables
-3. Add variables like:
-   - `NEXT_PUBLIC_API_KEY`
-   - `NEXT_PUBLIC_API_URL`
-
-## 📱 Usage
-
-### Navigation
-- **Sidebar**: Access different sections (Dashboard, Trading, Analytics, etc.)
-- **Header**: View portfolio summary and access user settings
-- **Main Content**: Interactive dashboard with real-time data
-
-### Portfolio Management
-- Switch between Overview and Positions views
-- Monitor real-time portfolio value changes
-- View allocation breakdown with interactive charts
-
-### Market Analysis
-- Track major market indices
-- Monitor top gainers and losers
-- Analyze stock performance with technical indicators
-
-### Trading
-- View recent trade history
-- Monitor trade status and execution
-- Access trading tools and order management
-
-## 🔧 Customization
-
-### Adding Real Data Sources
-Replace mock data in `data/mockData.ts` with real API calls:
-
-```typescript
-// Example API integration
-export const fetchPortfolioData = async () => {
-  const response = await fetch('/api/portfolio')
-  return response.json()
-}
+### **1. Clone & Install**
+```bash
+git clone <your-repo-url>
+cd trading-dashboard
+npm install
 ```
 
-### Styling
-Customize the design by modifying:
-- `tailwind.config.js` - Color schemes and custom utilities
-- `app/globals.css` - Global styles and component classes
-- Individual component files for specific styling
+### **2. Set Up Trade Station API**
+1. **Get API credentials** from [Trade Station Developers](https://developers.tradestation.com/)
+2. **Copy environment template:**
+   ```bash
+   cp env.example .env.local
+   ```
+3. **Fill in your credentials** in `.env.local`
 
-### Adding New Components
-Create new components in the `components/` directory and import them into the main page:
-
-```typescript
-import NewComponent from '@/components/NewComponent'
-
-// Add to your dashboard layout
-<NewComponent />
+### **3. Run Development Server**
+```bash
+npm run dev
 ```
 
-## 📊 Data Structure
+### **4. Connect to Trade Station**
+1. **Click "Connect Trade Station"** on the dashboard
+2. **Log in** with your Trade Station credentials
+3. **Authorize** the application
+4. **Start receiving** real market signals!
 
-The application uses TypeScript interfaces for type safety:
+## 🔑 **Trade Station Setup**
 
-- **PortfolioData**: Portfolio summary and positions
-- **MarketData**: Market indices and stock movements
-- **Trade**: Individual trade records
-- **NewsItem**: Financial news with sentiment analysis
+### **Step 1: Create Developer Account**
+1. Visit [Trade Station Developers](https://developers.tradestation.com/)
+2. Click **"Get API Key"**
+3. **Sign up** for a free developer account
 
-## 🚀 Performance Features
+### **Step 2: Create Application**
+1. **Log into** Trade Station Developer Portal
+2. Click **"Create New App"**
+3. **Configure your app:**
+   - **App Name**: `Trading Signals Dashboard`
+   - **Callback URLs**: 
+     ```
+     https://your-app.vercel.app/api/auth/callback
+     http://localhost:3000/api/auth/callback
+     ```
 
-- **Code Splitting**: Automatic route-based code splitting
-- **Image Optimization**: Next.js built-in image optimization
-- **Lazy Loading**: Components load only when needed
-- **Responsive Images**: Automatic responsive image handling
+### **Step 3: Get Credentials**
+After creating your app, you'll receive:
+- **Client ID**
+- **Client Secret**
 
-## 🔒 Security Considerations
+### **Step 4: Environment Variables**
+Create `.env.local` with your credentials:
+```bash
+TRADESTATION_CLIENT_ID=your_client_id_here
+TRADESTATION_CLIENT_SECRET=your_client_secret_here
+TRADESTATION_REDIRECT_URI=https://your-app.vercel.app/api/auth/callback
+```
 
-- **Environment Variables**: Store sensitive data in environment variables
-- **API Rate Limiting**: Implement rate limiting for external APIs
-- **Input Validation**: Validate all user inputs
-- **HTTPS**: Vercel provides automatic HTTPS
+## 🚀 **Deploy to Vercel**
 
-## 📈 Future Enhancements
+### **1. Push to GitHub**
+```bash
+git add .
+git commit -m "Add Trade Station integration"
+git push origin main
+```
 
-- **Real-time WebSocket connections** for live market data
-- **User authentication** and portfolio management
-- **Advanced charting** with TradingView integration
-- **Mobile app** using React Native
-- **AI-powered** trading recommendations
-- **Social trading** features
+### **2. Deploy on Vercel**
+1. **Import** your GitHub repository
+2. **Add environment variables** in Vercel dashboard
+3. **Deploy** automatically
 
-## 🤝 Contributing
+### **3. Update Callback URLs**
+In Trade Station Developer Portal, update callback URLs to your Vercel domain.
 
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+## 🏗️ **Project Structure**
 
-## 📄 License
+```
+trading-dashboard/
+├── app/
+│   ├── api/
+│   │   ├── auth/
+│   │   │   ├── tradestation/     # Trade Station OAuth
+│   │   │   └── callback/         # OAuth callback handler
+│   │   └── tradestation-api/     # Market data API
+│   ├── globals.css
+│   ├── layout.tsx
+│   └── page.tsx                  # Main dashboard
+├── components/
+│   ├── Header.tsx
+│   ├── Sidebar.tsx
+│   ├── SignalDashboard.tsx       # S&P signals dashboard
+│   ├── PortfolioOverview.tsx
+│   ├── MarketWatch.tsx
+│   ├── TradingChart.tsx
+│   ├── RecentTrades.tsx
+│   └── NewsFeed.tsx
+├── data/
+│   └── mockData.ts               # Sample data (replaced by real API)
+├── env.example                    # Environment variables template
+├── TRADESTATION_SETUP.md         # Detailed setup guide
+└── package.json
+```
+
+## 🔧 **API Endpoints**
+
+### **Authentication**
+- `GET /api/auth/tradestation` - Start OAuth flow
+- `GET /api/auth/callback` - Handle OAuth callback
+
+### **Market Data**
+- `GET /api/tradestation-api?symbol=SPY` - Get SPY data
+- `GET /api/tradestation-api?symbol=SPX` - Get SPX data
+- `GET /api/tradestation-api?symbol=ES` - Get ES data
+
+## 📊 **Signal Generation**
+
+The dashboard generates trading signals based on:
+
+- **RSI (Relative Strength Index)** - Oversold/overbought conditions
+- **MACD** - Momentum and trend changes
+- **Bollinger Bands** - Volatility and price extremes
+- **VIX Impact** - Market fear and volatility
+- **Market Hours** - Higher confidence during active trading
+
+## 🚨 **Risk Management**
+
+- **Signal Confidence Scoring** (0-100%)
+- **High Conviction Alerts** for signals ≥80%
+- **Risk Warnings** for volatile market conditions
+- **Position Sizing Recommendations**
+
+## 🎨 **UI Components**
+
+- **Modern Card Design** with Tailwind CSS
+- **Responsive Grid Layouts** for all screen sizes
+- **Real-time Updates** with smooth animations
+- **Professional Color Scheme** optimized for trading
+- **Interactive Charts** with Recharts library
+
+## 🔒 **Security Features**
+
+- **OAuth 2.0 Authentication** with Trade Station
+- **Secure Token Storage** (localStorage for demo, database for production)
+- **Environment Variables** for sensitive credentials
+- **CSRF Protection** with state parameters
+
+## 📱 **Mobile Responsiveness**
+
+- **Mobile-first design** approach
+- **Touch-friendly** interface elements
+- **Responsive charts** and data tables
+- **Optimized navigation** for small screens
+
+## 🚀 **Performance**
+
+- **Next.js 14** with App Router
+- **Server-side rendering** for fast initial loads
+- **Optimized images** and assets
+- **Efficient data fetching** with caching
+
+## 🧪 **Testing**
+
+### **Local Development**
+```bash
+npm run dev          # Start development server
+npm run build        # Build for production
+npm run start        # Start production server
+npm run lint         # Run ESLint
+```
+
+### **API Testing**
+Test your Trade Station integration:
+```bash
+# Test authentication
+curl http://localhost:3000/api/auth/tradestation
+
+# Test market data (after authentication)
+curl "http://localhost:3000/api/tradestation-api?symbol=SPY"
+```
+
+## 📚 **Documentation**
+
+- **[Trade Station Setup Guide](TRADESTATION_SETUP.md)** - Complete integration guide
+- **[Broker Integration Guide](BROKER_INTEGRATION.md)** - Alternative broker options
+- **[Deployment Guide](DEPLOYMENT.md)** - Vercel deployment steps
+
+## 🤝 **Contributing**
+
+1. **Fork** the repository
+2. **Create** a feature branch
+3. **Make** your changes
+4. **Test** thoroughly
+5. **Submit** a pull request
+
+## 📄 **License**
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## 🆘 Support
+## 🆘 **Support**
 
-If you encounter any issues:
-
-1. Check the [Issues](https://github.com/your-repo/issues) page
-2. Create a new issue with detailed description
-3. Contact the development team
-
-## 🙏 Acknowledgments
-
-- **Next.js Team** for the amazing framework
-- **Tailwind CSS** for the utility-first CSS framework
-- **Recharts** for the charting library
-- **Lucide** for the beautiful icons
+- **Trade Station API Issues**: [Trade Station Support](https://developers.tradestation.com/support)
+- **Dashboard Issues**: Create an issue in this repository
+- **General Questions**: Check the setup guides above
 
 ---
 
-**Happy Trading! 📈💰**
+**Ready to trade with real market data! 🚀📈**
+
+*Built with Next.js, TypeScript, Tailwind CSS, and Trade Station API*
