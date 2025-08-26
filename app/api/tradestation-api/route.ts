@@ -44,7 +44,7 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// Real Trade Station API integration - single call for daily data
+// Real Trade Station API integration - fetch both daily and 2-hour data
 async function getRealTradeStationData(symbol: string, accessToken: string) {
   try {
     // Different symbol formats for different instruments
@@ -57,31 +57,53 @@ async function getRealTradeStationData(symbol: string, accessToken: string) {
       apiSymbol = symbol // SPY uses plain symbol
     }
     
-    const apiUrl = `https://api.tradestation.com/v3/marketdata/barcharts/${apiSymbol}?barsback=300&interval=1&unit=Daily`
-    console.log(`🔍 Making API call for ${symbol}:`, apiUrl)
+    // Fetch both daily and 2-hour (120-minute) data
+    const dailyUrl = `https://api.tradestation.com/v3/marketdata/barcharts/${apiSymbol}?barsback=1000&interval=1&unit=Daily`
+    const hourlyUrl = `https://api.tradestation.com/v3/marketdata/barcharts/${apiSymbol}?barsback=1000&interval=120&unit=Minute`
+    
+    console.log(`🔍 Making API calls for ${symbol}:`)
+    console.log(`📅 Daily:`, dailyUrl)
+    console.log(`⏰ 2-Hour (120min):`, hourlyUrl)
     console.log(`🔑 Using token:`, accessToken.substring(0, 20) + '...')
     
-    // Get daily barcharts data (1000 bars, daily interval)
-    const response = await fetch(apiUrl, {
-      headers: {
-        'Authorization': `Bearer ${accessToken}`,
-        'Content-Type': 'application/json'
-      }
-    })
+    // Fetch both datasets in parallel
+    const [dailyResponse, hourlyResponse] = await Promise.all([
+      fetch(dailyUrl, {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json'
+        }
+      }),
+      fetch(hourlyUrl, {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json'
+        }
+      })
+    ])
     
-    console.log(`📡 Response status for ${symbol}:`, response.status)
-    console.log(`📡 Response headers for ${symbol}:`, Object.fromEntries(response.headers.entries()))
+    //console.log(`📡 Daily response status for ${symbol}:`, dailyResponse.status)
+    //console.log(`📡 2-Hour (120min) response status for ${symbol}:`, hourlyResponse.status)
     
-    if (!response.ok) {
-      const errorText = await response.text()
-      console.error(`❌ Trade Station API error for ${symbol}:`, response.status, errorText)
-      throw new Error(`Trade Station API error: ${response.status} - ${errorText}`)
+    if (!dailyResponse.ok) {
+      const errorText = await dailyResponse.text()
+      console.error(`❌ Trade Station daily API error for ${symbol}:`, dailyResponse.status, errorText)
+      throw new Error(`Trade Station daily API error: ${dailyResponse.status} - ${errorText}`)
     }
     
-    const data = await response.json()
-    console.log(`✅ Raw Trade Station response for ${symbol}:`, JSON.stringify(data, null, 2))
+    if (!hourlyResponse.ok) {
+      const errorText = await hourlyResponse.text()
+      console.error(`❌ Trade Station 2-hour (120min) API error for ${symbol}:`, hourlyResponse.status, errorText)
+      throw new Error(`Trade Station 2-hour (120min) API error: ${hourlyResponse.status} - ${errorText}`)
+    }
     
-    return transformTradeStationData(data, symbol)
+    const dailyData = await dailyResponse.json()
+    const hourlyData = await hourlyResponse.json()
+    
+    //console.log(`✅ Raw daily response for ${symbol}:`, JSON.stringify(dailyData, null, 2))
+    //console.log(`✅ Raw 2-hour (120min) response for ${symbol}:`, JSON.stringify(hourlyData, null, 2))
+    
+    return transformTradeStationData(dailyData, hourlyData, symbol)
   } catch (error) {
     console.error('❌ Failed to fetch real Trade Station data:', error)
     throw error
@@ -89,41 +111,65 @@ async function getRealTradeStationData(symbol: string, accessToken: string) {
 }
 
 // Transform Trade Station data to our format
-function transformTradeStationData(barchartsData: any, symbol: string) {
-  console.log(`🔄 Transforming data for ${symbol}:`, JSON.stringify(barchartsData, null, 2))
+function transformTradeStationData(dailyData: any, hourlyData: any, symbol: string) {
+      //console.log(`🔄 Transforming data for ${symbol}:`)
+      //console.log(`📅 Daily data:`, JSON.stringify(dailyData, null, 2))
+      //console.log(`⏰ 2-Hour (120min) data:`, JSON.stringify(hourlyData, null, 2))
+    
+    if (!dailyData.Bars || dailyData.Bars.length === 0) {
+    console.error(`❌ No daily bars data for ${symbol}:`, dailyData)
+    throw new Error('No daily data received from Trade Station')
+  }
   
-  if (!barchartsData.Bars || barchartsData.Bars.length === 0) {
-    console.error(`❌ No bars data for ${symbol}:`, barchartsData)
-    throw new Error('No data received from Trade Station')
+  if (!hourlyData.Bars || hourlyData.Bars.length === 0) {
+    console.error(`❌ No 2-hour (120min) bars data for ${symbol}:`, hourlyData)
+    throw new Error('No 2-hour (120min) data received from Trade Station')
   }
 
-  const bars = barchartsData.Bars
-  // Bars are returned in chronological order (oldest first), so last element is most recent
-  const latestBar = bars[bars.length - 1] // Most recent data (last element)
-  const previousBar = bars.length > 1 ? bars[bars.length - 2] : null // Previous day for change calculation
+  const dailyBars = dailyData.Bars
+  const hourlyBars = hourlyData.Bars
   
-  console.log(`📊 Latest bar for ${symbol}:`, JSON.stringify(latestBar, null, 2))
-  if (previousBar) {
-    console.log(`📊 Previous bar for ${symbol}:`, JSON.stringify(previousBar, null, 2))
-  }
+  // Get most recent data (last element in arrays)
+  const latestDailyBar = dailyBars[dailyBars.length - 1]
+  const previousDailyBar = dailyBars.length > 1 ? dailyBars[dailyBars.length - 2] : null
   
-  // Calculate 89 SMA and EMA from closing prices (bars are already in chronological order)
-  const closingPrices = bars.map((bar: any) => parseFloat(bar.Close))
-  const sma89 = calculateSMA(closingPrices, 89)
-  const ema89 = calculateEMA(closingPrices, 89)
+  const latestHourlyBar = hourlyBars[hourlyBars.length - 1]
+  const previousHourlyBar = hourlyBars.length > 1 ? hourlyBars[hourlyBars.length - 2] : null
   
-  // Calculate daily change
-  const change = previousBar ? ((parseFloat(latestBar.Close) - parseFloat(previousBar.Close)) / parseFloat(previousBar.Close)) * 100 : 0
+  console.log(`📊 Latest daily bar for ${symbol}:`, JSON.stringify(latestDailyBar, null, 2))
+  console.log(`📊 Latest 2-hour (120min) bar for ${symbol}:`, JSON.stringify(latestHourlyBar, null, 2))
+  
+  // Calculate indicators from daily data (for consistency)
+  const dailyClosingPrices = dailyBars.map((bar: any) => parseFloat(bar.Close))
+  const sma89 = calculateSMA(dailyClosingPrices, 89)
+  const ema89 = calculateEMA(dailyClosingPrices, 89)
+  
+  // Calculate 2-hour SMA (using 2-hour data)
+  const hourlyClosingPrices = hourlyBars.map((bar: any) => parseFloat(bar.Close))
+  const sma2h = calculateSMA(hourlyClosingPrices, 89) // 89-period SMA on 2-hour data
+  
+  // Calculate changes
+  const dailyChange = previousDailyBar ? ((parseFloat(latestDailyBar.Close) - parseFloat(previousDailyBar.Close)) / parseFloat(previousDailyBar.Close)) * 100 : 0
+  const hourlyChange = previousHourlyBar ? ((parseFloat(latestHourlyBar.Close) - parseFloat(previousHourlyBar.Close)) / parseFloat(previousHourlyBar.Close)) * 100 : 0
 
   const result = {
     symbol,
     instrumentType: symbol as 'SPY' | 'SPX' | 'ES',
-    price: parseFloat(latestBar.Close),
-    change: parseFloat(change.toFixed(2)),
-    volume: parseInt(latestBar.TotalVolume) || 0,
-    timestamp: new Date().toISOString(),
+    daily: {
+      price: parseFloat(latestDailyBar.Close),
+      change: parseFloat(dailyChange.toFixed(2)),
+      volume: parseInt(latestDailyBar.TotalVolume) || 0,
+      timestamp: latestDailyBar.TimeStamp || new Date().toISOString()
+    },
+    hourly: {
+      price: parseFloat(latestHourlyBar.Close),
+      change: parseFloat(hourlyChange.toFixed(2)),
+      volume: parseInt(latestHourlyBar.TotalVolume) || 0,
+      timestamp: latestHourlyBar.TimeStamp || new Date().toISOString()
+    },
     sma89: parseFloat(sma89.toFixed(2)),
-    ema89: parseFloat(ema89.toFixed(2))
+    ema89: parseFloat(ema89.toFixed(2)),
+    sma2h: parseFloat(sma2h.toFixed(2)) // 2-hour SMA
   }
   
   console.log(`🎯 Final transformed data for ${symbol}:`, JSON.stringify(result, null, 2))
@@ -179,19 +225,33 @@ function generateMockData(symbol: string) {
   
   const basePrice = basePrices[symbol as keyof typeof basePrices] || 450
   const variation = (Math.random() - 0.5) * 0.1 // ±5% variation
-  const price = basePrice * (1 + variation)
-  const change = (Math.random() - 0.5) * 4 // ±2% change
-  const sma89 = price * (1 + (Math.random() - 0.5) * 0.05) // SMA close to price
-  const ema89 = price * (1 + (Math.random() - 0.5) * 0.03) // EMA close to price
+  const dailyPrice = basePrice * (1 + variation)
+  const hourlyPrice = dailyPrice * (1 + (Math.random() - 0.5) * 0.02) // Slight variation for hourly
+  
+  const dailyChange = (Math.random() - 0.5) * 4 // ±2% change
+  const hourlyChange = (Math.random() - 0.5) * 2 // ±1% change for hourly
+  
+  const sma89 = dailyPrice * (1 + (Math.random() - 0.5) * 0.05) // SMA close to price
+  const ema89 = dailyPrice * (1 + (Math.random() - 0.5) * 0.03) // EMA close to price
+  const sma2h = hourlyPrice * (1 + (Math.random() - 0.5) * 0.04) // 2-hour SMA close to hourly price
 
   return {
     symbol,
     instrumentType: symbol as 'SPY' | 'SPX' | 'ES',
-    price: parseFloat(price.toFixed(2)),
-    change: parseFloat(change.toFixed(2)),
-    volume: Math.floor(Math.random() * 100000000),
-    timestamp: new Date().toISOString(),
+    daily: {
+      price: parseFloat(dailyPrice.toFixed(2)),
+      change: parseFloat(dailyChange.toFixed(2)),
+      volume: Math.floor(Math.random() * 100000000),
+      timestamp: new Date().toISOString()
+    },
+    hourly: {
+      price: parseFloat(hourlyPrice.toFixed(2)),
+      change: parseFloat(hourlyChange.toFixed(2)),
+      volume: Math.floor(Math.random() * 50000000),
+      timestamp: new Date().toISOString()
+    },
     sma89: parseFloat(sma89.toFixed(2)),
-    ema89: parseFloat(ema89.toFixed(2))
+    ema89: parseFloat(ema89.toFixed(2)),
+    sma2h: parseFloat(sma2h.toFixed(2)) // 2-hour SMA
   }
 }
