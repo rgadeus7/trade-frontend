@@ -3,8 +3,6 @@ import { supabase } from '@/lib/supabase'
 
 export async function GET(request: NextRequest) {
   try {
-    console.log('Testing database connection...')
-    
     // Test basic connection
     const { data: testData, error: testError } = await supabase
       .from('market_data')
@@ -28,11 +26,8 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to fetch data', details: error }, { status: 500 })
     }
     
-    console.log('Database test successful, found', data?.length, 'records')
-    
     // Check specifically for 2-hour data
     const twoHourData = data?.filter(item => item.timeframe === '2hour')
-    console.log('2-hour data found:', twoHourData?.length || 0)
     
     // Group by symbol and timeframe
     const grouped = data?.reduce((acc, item) => {

@@ -15,14 +15,13 @@ export async function GET(request: NextRequest) {
     }
 
     // Validate symbol is one of our supported instruments
-    const supportedSymbols = ['SPY', 'SPX', 'ES']
+    const supportedSymbols = ['SPY', 'SPX', 'ES', 'VIX']
     if (!supportedSymbols.includes(symbol)) {
-      return NextResponse.json({ error: 'Unsupported symbol. Only SPY, SPX, ES are supported.' }, { status: 400 })
+      return NextResponse.json({ error: 'Unsupported symbol. Only SPY, SPX, ES, VIX are supported.' }, { status: 400 })
     }
 
     // Only proceed if token is provided
     if (!token) {
-      console.log(`No token provided for ${symbol}, returning mock data`)
       const mockData = generateMockData(symbol)
       return NextResponse.json(mockData)
     }
@@ -31,7 +30,6 @@ export async function GET(request: NextRequest) {
     try {
       const realData = await getRealTradeStationData(symbol, token)
       if (realData) {
-        console.log(`Successfully fetched real data for ${symbol}`)
         return NextResponse.json(realData)
       }
     } catch (error) {
@@ -56,18 +54,17 @@ async function getRealTradeStationData(symbol: string, accessToken: string) {
       apiSymbol = `@${symbol}` // Futures need @ prefix
     } else if (symbol === 'SPX') {
       apiSymbol = `$${symbol}.X` // SPX needs $SPX.X format
+    } else if (symbol === 'VIX') {
+      apiSymbol = `$${symbol}.X` // VIX needs $VIX.X format
     } else {
       apiSymbol = symbol // SPY uses plain symbol
     }
     
-    // Fetch both daily and 2-hour (120-minute) data
-    const dailyUrl = `https://api.tradestation.com/v3/marketdata/barcharts/${apiSymbol}?barsback=1000&interval=1&unit=Daily`
-    const hourlyUrl = `https://api.tradestation.com/v3/marketdata/barcharts/${apiSymbol}?barsback=1000&interval=120&unit=Minute`
+    // Fetch both daily and 2-hour (120-minute) data (300 records is more than enough for 89-period SMA)
+    const dailyUrl = `https://api.tradestation.com/v3/marketdata/barcharts/${apiSymbol}?barsback=300&interval=1&unit=Daily`
+    const hourlyUrl = `https://api.tradestation.com/v3/marketdata/barcharts/${apiSymbol}?barsback=300&interval=120&unit=Minute`
     
-    console.log(`🔍 Making API calls for ${symbol}:`)
-    console.log(`📅 Daily:`, dailyUrl)
-    console.log(`⏰ 2-Hour (120min):`, hourlyUrl)
-    console.log(`🔑 Using token:`, accessToken.substring(0, 20) + '...')
+
     
     // Fetch both datasets in parallel
     const [dailyResponse, hourlyResponse] = await Promise.all([
@@ -139,15 +136,14 @@ function transformTradeStationData(dailyData: any, hourlyData: any, symbol: stri
   const latestHourlyBar = hourlyBars[hourlyBars.length - 1]
   const previousHourlyBar = hourlyBars.length > 1 ? hourlyBars[hourlyBars.length - 2] : null
   
-  console.log(`📊 Latest daily bar for ${symbol}:`, JSON.stringify(latestDailyBar, null, 2))
-  console.log(`📊 Latest 2-hour (120min) bar for ${symbol}:`, JSON.stringify(latestHourlyBar, null, 2))
+
   
-  // Calculate indicators from daily data (for consistency)
+  // Calculate indicators from daily data
   const dailyClosingPrices = dailyBars.map((bar: any) => parseFloat(bar.Close))
   const sma89 = calculateSMA(dailyClosingPrices, 89)
   const ema89 = calculateEMA(dailyClosingPrices, 89)
   
-  // Calculate 2-hour SMA (using 2-hour data)
+  // Calculate 2-hour SMA (using 2-hour data with 89-period)
   const hourlyClosingPrices = hourlyBars.map((bar: any) => parseFloat(bar.Close))
   const sma2h = calculateSMA(hourlyClosingPrices, 89) // 89-period SMA on 2-hour data
   
@@ -157,7 +153,7 @@ function transformTradeStationData(dailyData: any, hourlyData: any, symbol: stri
 
   const result = {
     symbol,
-    instrumentType: symbol as 'SPY' | 'SPX' | 'ES',
+    instrumentType: symbol as 'SPY' | 'SPX' | 'ES' | 'VIX',
     daily: {
       price: parseFloat(latestDailyBar.Close),
       change: parseFloat(dailyChange.toFixed(2)),
@@ -175,7 +171,7 @@ function transformTradeStationData(dailyData: any, hourlyData: any, symbol: stri
     sma2h: parseFloat(sma2h.toFixed(2)) // 2-hour SMA
   }
   
-  console.log(`🎯 Final transformed data for ${symbol}:`, JSON.stringify(result, null, 2))
+
   
   return result
 }
@@ -223,7 +219,8 @@ function generateMockData(symbol: string) {
   const basePrices = {
     'SPY': 450,
     'SPX': 4500,
-    'ES': 4500
+    'ES': 4500,
+    'VIX': 15
   }
   
   const basePrice = basePrices[symbol as keyof typeof basePrices] || 450
@@ -240,7 +237,7 @@ function generateMockData(symbol: string) {
 
   return {
     symbol,
-    instrumentType: symbol as 'SPY' | 'SPX' | 'ES',
+    instrumentType: symbol as 'SPY' | 'SPX' | 'ES' | 'VIX',
     daily: {
       price: parseFloat(dailyPrice.toFixed(2)),
       change: parseFloat(dailyChange.toFixed(2)),

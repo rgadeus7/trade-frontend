@@ -78,14 +78,10 @@ export default function Header({ onMenuClick, portfolioData }: HeaderProps) {
               className="flex items-center space-x-2 p-2 rounded-md text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition-colors"
             >
               <User className="h-5 w-5" />
-              <span className="hidden md:block text-sm font-medium">John Doe</span>
             </button>
 
             {isUserMenuOpen && (
               <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-50">
-                <a href="#" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
-                  Profile
-                </a>
                 <a href="#" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
                   Settings
                 </a>

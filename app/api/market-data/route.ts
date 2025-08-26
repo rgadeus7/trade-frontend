@@ -6,7 +6,6 @@ export const dynamic = 'force-dynamic'
 
 export async function GET(request: NextRequest) {
   try {
-    console.log('API route called')
     const { searchParams } = request.nextUrl
     const symbol = searchParams.get('symbol')
 
@@ -23,7 +22,6 @@ export async function GET(request: NextRequest) {
     } else {
       // Get data for all symbols
       const data = await getDashboardData()
-      console.log('API returning data:', data)
       return NextResponse.json(data)
     }
   } catch (error) {

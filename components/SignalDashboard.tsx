@@ -5,7 +5,7 @@ import { Activity, BarChart3, RefreshCw } from 'lucide-react'
 
 interface MarketData {
   symbol: string
-  instrumentType: 'SPY' | 'SPX' | 'ES'
+  instrumentType: 'SPY' | 'SPX' | 'ES' | 'VIX'
   daily: {
     price: number
     change: number
@@ -29,7 +29,7 @@ interface SignalDashboardProps {
 }
 
 export default function SignalDashboard({ 
-  watchlist = ['SPY', 'SPX', 'ES'],
+  watchlist = ['SPY', 'SPX', 'ES', 'VIX'],
   apiToken
 }: SignalDashboardProps) {
   const [marketData, setMarketData] = useState<MarketData[]>([])
@@ -89,8 +89,6 @@ export default function SignalDashboard({
         setLoading(true)
       }
 
-      console.log('Fetching market data from database...')
-      
       // Fetch all data from our database API
       const response = await fetch('/api/market-data')
       
@@ -103,8 +101,6 @@ export default function SignalDashboard({
       setMarketData(data)
       setCachedData(data)
       setLastUpdated(new Date())
-      
-      console.log(`Successfully fetched data for ${data.length} symbols`)
     } catch (error) {
       console.error('Failed to fetch market data:', error)
     } finally {
@@ -134,6 +130,8 @@ export default function SignalDashboard({
         return 'bg-purple-100 text-purple-800 border-purple-200'
       case 'ES':
         return 'bg-orange-100 text-orange-800 border-orange-200'
+      case 'VIX':
+        return 'bg-red-100 text-red-800 border-red-200'
       default:
         return 'bg-gray-100 text-gray-800 border-gray-200'
     }
@@ -160,7 +158,7 @@ export default function SignalDashboard({
     })
   }
 
-  const instruments = ['all', 'SPY', 'SPX', 'ES']
+  const instruments = ['all', 'SPY', 'SPX', 'ES', 'VIX']
 
   const filteredData = selectedInstrument === 'all' 
     ? marketData 
@@ -330,7 +328,7 @@ export default function SignalDashboard({
               <p className="text-2xl font-bold text-green-900">
                 {formatCurrency(data.sma89)}
               </p>
-              {data.daily && (
+              {data.daily && data.sma89 > 0 ? (
                 <div className="mt-2">
                   <p className="text-sm text-green-600">
                     {data.daily.price > data.sma89 ? 'Above SMA' : 'Below SMA'}
@@ -338,6 +336,10 @@ export default function SignalDashboard({
                   <p className="text-xs text-green-500">
                     Distance: {formatCurrency(Math.abs(data.daily.price - data.sma89))}
                   </p>
+                </div>
+              ) : (
+                <div className="mt-2">
+                  <p className="text-sm text-gray-500">No daily data available for calculation</p>
                 </div>
               )}
             </div>
@@ -348,7 +350,7 @@ export default function SignalDashboard({
               <p className="text-2xl font-bold text-blue-900">
                 {formatCurrency(data.ema89)}
               </p>
-              {data.daily && (
+              {data.daily && data.ema89 > 0 ? (
                 <div className="mt-2">
                   <p className="text-sm text-blue-600">
                     {data.daily.price > data.ema89 ? 'Above EMA' : 'Below EMA'}
@@ -357,16 +359,20 @@ export default function SignalDashboard({
                     Distance: {formatCurrency(Math.abs(data.daily.price - data.ema89))}
                   </p>
                 </div>
+              ) : (
+                <div className="mt-2">
+                  <p className="text-sm text-gray-500">No daily data available for calculation</p>
+                </div>
               )}
             </div>
 
-            {/* 2-Hour SMA - Only show if we have actual 2-hour data */}
-            {data.hourly && (
-              <div className="bg-purple-50 border border-purple-200 rounded-lg p-4 mb-4">
-                <h4 className="text-sm font-medium text-purple-700 mb-2">2-Hour Simple Moving Average (89-period)</h4>
-                <p className="text-2xl font-bold text-purple-900">
-                  {formatCurrency(data.sma2h)}
-                </p>
+            {/* 2-Hour SMA - Always show, but indicate if no data */}
+            <div className="bg-purple-50 border border-purple-200 rounded-lg p-4 mb-4">
+              <h4 className="text-sm font-medium text-purple-700 mb-2">2-Hour Simple Moving Average (89-period)</h4>
+              <p className="text-2xl font-bold text-purple-900">
+                {formatCurrency(data.sma2h)}
+              </p>
+              {data.hourly && data.sma2h > 0 ? (
                 <div className="mt-2">
                   <p className="text-sm text-purple-600">
                     {data.hourly.price > data.sma2h ? 'Above 2H SMA' : 'Below 2H SMA'}
@@ -375,8 +381,12 @@ export default function SignalDashboard({
                     Distance: {formatCurrency(Math.abs(data.hourly.price - data.sma2h))}
                   </p>
                 </div>
-              </div>
-            )}
+              ) : (
+                <div className="mt-2">
+                  <p className="text-sm text-gray-500">No 2-hour data available for calculation</p>
+                </div>
+              )}
+            </div>
 
             {/* Volume */}
             {data.daily ? (

@@ -5,7 +5,6 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
-// Database types for TypeScript
 export interface MarketData {
   id: number
   symbol: string
@@ -19,13 +18,4 @@ export interface MarketData {
   created_at: string
 }
 
-export interface Indicators {
-  id: number
-  symbol: string
-  timeframe: 'daily' | '2hour'
-  timestamp: string
-  sma89: number
-  ema89: number
-  sma2h: number
-  created_at: string
-}
+// Note: Removed Indicators interface - indicators are calculated on-demand

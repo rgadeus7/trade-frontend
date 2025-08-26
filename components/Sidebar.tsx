@@ -23,13 +23,14 @@ export default function Sidebar({ isOpen }: SidebarProps) {
 
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: Home },
-    { id: 'trading', label: 'Trading', icon: TrendingUp },
-    { id: 'analytics', label: 'Analytics', icon: BarChart3 },
-    { id: 'portfolio', label: 'Portfolio', icon: Wallet },
-    { id: 'history', label: 'Trade History', icon: History },
-    { id: 'news', label: 'News & Research', icon: Newspaper },
-    { id: 'settings', label: 'Settings', icon: Settings },
-    { id: 'help', label: 'Help & Support', icon: HelpCircle },
+    // Temporarily hidden - uncomment when ready to implement
+    // { id: 'trading', label: 'Trading', icon: TrendingUp },
+    // { id: 'analytics', label: 'Analytics', icon: BarChart3 },
+    // { id: 'portfolio', label: 'Portfolio', icon: Wallet },
+    // { id: 'history', label: 'Trade History', icon: History },
+    // { id: 'news', label: 'News & Research', icon: Newspaper },
+    // { id: 'settings', label: 'Settings', icon: Settings },
+    // { id: 'help', label: 'Help & Support', icon: HelpCircle },
   ]
 
   return (
@@ -68,8 +69,8 @@ export default function Sidebar({ isOpen }: SidebarProps) {
           })}
         </nav>
 
-        {/* Quick Actions */}
-        {isOpen && (
+        {/* Quick Actions - Temporarily hidden for clean interface */}
+        {/* {isOpen && (
           <div className="mt-8 pt-6 border-t border-gray-200">
             <h3 className="text-sm font-semibold text-gray-900 mb-3">Quick Actions</h3>
             <div className="space-y-2">
@@ -81,7 +82,7 @@ export default function Sidebar({ isOpen }: SidebarProps) {
               </button>
             </div>
           </div>
-        )}
+        )} */}
 
         {/* Market Status */}
         {isOpen && (

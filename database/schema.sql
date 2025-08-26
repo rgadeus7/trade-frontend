@@ -2,7 +2,7 @@
 CREATE TABLE market_data (
   id BIGSERIAL PRIMARY KEY,
   symbol VARCHAR(10) NOT NULL,
-  timeframe VARCHAR(20) NOT NULL CHECK (timeframe IN ('daily', '2hour')),
+  timeframe VARCHAR(20) NOT NULL CHECK (timeframe IN ('daily','weekly', 'monthly' , '5min', '15min', '1hour', '2hour', '4hour')),
   timestamp TIMESTAMPTZ NOT NULL,
   open DECIMAL(10,2),
   high DECIMAL(10,2),
@@ -13,18 +13,6 @@ CREATE TABLE market_data (
   UNIQUE(symbol, timeframe, timestamp)
 );
 
--- Pre-calculated indicators table
-CREATE TABLE indicators (
-  id BIGSERIAL PRIMARY KEY,
-  symbol VARCHAR(10) NOT NULL,
-  timeframe VARCHAR(20) NOT NULL,
-  timestamp TIMESTAMPTZ NOT NULL,
-  sma89 DECIMAL(10,2),
-  ema89 DECIMAL(10,2),
-  sma2h DECIMAL(10,2),
-  created_at TIMESTAMPTZ DEFAULT NOW(),
-  UNIQUE(symbol, timeframe, timestamp)
-);
 
 -- Create indexes for performance
 CREATE INDEX idx_market_data_symbol_timeframe ON market_data(symbol, timeframe);
@@ -40,12 +28,8 @@ ALTER TABLE indicators ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Allow public read access to market_data" ON market_data
   FOR SELECT USING (true);
 
-CREATE POLICY "Allow public read access to indicators" ON indicators
-  FOR SELECT USING (true);
 
 -- Create policies for service role insert/update access
 CREATE POLICY "Allow service role full access to market_data" ON market_data
   FOR ALL USING (auth.role() = 'service_role');
 
-CREATE POLICY "Allow service role full access to indicators" ON indicators
-  FOR ALL USING (auth.role() = 'service_role');
