@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 
+// Force dynamic rendering to avoid static generation issues with search params
+export const dynamic = 'force-dynamic'
+
 export async function GET(request: NextRequest) {
-  const { searchParams } = new URL(request.url)
+  const { searchParams } = request.nextUrl
   const code = searchParams.get('code')
   const state = searchParams.get('state')
 

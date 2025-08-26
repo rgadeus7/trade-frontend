@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 
+// Force dynamic rendering to avoid static generation issues with search params
+export const dynamic = 'force-dynamic'
+
 // Interactive Brokers Cloud API Integration for SPY, SPX, ES
 export async function GET(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url)
+    const { searchParams } = request.nextUrl
     const symbol = searchParams.get('symbol')
     const action = searchParams.get('action')
 

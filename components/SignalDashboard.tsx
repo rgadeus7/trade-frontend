@@ -11,13 +11,13 @@ interface MarketData {
     change: number
     volume: number
     timestamp: string
-  }
+  } | null
   hourly: {
     price: number
     change: number
     volume: number
     timestamp: string
-  }
+  } | null
   sma89: number
   ema89: number
   sma2h: number // 2-hour SMA
@@ -69,12 +69,6 @@ export default function SignalDashboard({
   }, [])
 
   const fetchMarketData = useCallback(async (forceRefresh = false) => {
-    // Only fetch if we have a token
-    if (!apiToken) {
-      console.log('No API token provided, using mock data')
-      return
-    }
-
     // Don't fetch if already loading
     if (loading && !forceRefresh) return
     
@@ -91,62 +85,41 @@ export default function SignalDashboard({
     try {
       if (forceRefresh) {
         setIsRefreshing(true)
-        // Clear fetched symbols when forcing refresh
-        fetchedSymbolsRef.current.clear()
       } else {
         setLoading(true)
       }
-      
-      // Only fetch symbols that haven't been fetched yet
-      const symbolsToFetch = watchlist.filter(symbol => 
-        forceRefresh || !fetchedSymbolsRef.current.has(symbol)
-      )
 
-      if (symbolsToFetch.length === 0) {
-        console.log('All symbols already fetched, using cached data')
-        const cachedData = getCachedData()
-        if (cachedData) {
-          setMarketData(cachedData)
-          setLastUpdated(new Date())
-        }
-        return
+      console.log('Fetching market data from database...')
+      
+      // Fetch all data from our database API
+      const response = await fetch('/api/market-data')
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
       }
-
-      console.log(`Fetching data for symbols: ${symbolsToFetch.join(', ')}`)
       
-      const dataPromises = symbolsToFetch.map(symbol => {
-        const url = `/api/tradestation-api?symbol=${symbol}&token=${apiToken}`
-        return fetch(url).then(res => res.json())
-      })
+      const data = await response.json()
       
-      const newResults = await Promise.all(dataPromises)
-      
-      // Mark symbols as fetched
-      symbolsToFetch.forEach(symbol => fetchedSymbolsRef.current.add(symbol))
-      
-      // Combine with existing data or replace all
-      const updatedData = forceRefresh ? newResults : [...marketData, ...newResults]
-      
-      setMarketData(updatedData)
-      setCachedData(updatedData)
+      setMarketData(data)
+      setCachedData(data)
       setLastUpdated(new Date())
       
-      console.log(`Successfully fetched data for ${symbolsToFetch.length} symbols`)
+      console.log(`Successfully fetched data for ${data.length} symbols`)
     } catch (error) {
       console.error('Failed to fetch market data:', error)
     } finally {
       setLoading(false)
       setIsRefreshing(false)
     }
-  }, [apiToken, watchlist, loading, getCachedData, setCachedData, marketData])
+  }, [loading, getCachedData, setCachedData])
 
-  // Initial load only when token is available
+  // Initial load
   useEffect(() => {
-    if (apiToken && !hasLoadedRef.current) {
+    if (!hasLoadedRef.current) {
       hasLoadedRef.current = true
       fetchMarketData()
     }
-  }, [apiToken]) // Only depend on apiToken
+  }, [fetchMarketData])
 
   // Manual refresh function
   const handleRefresh = () => {
@@ -193,14 +166,14 @@ export default function SignalDashboard({
     ? marketData 
     : marketData.filter(s => s.symbol === selectedInstrument)
 
-  // Show loading only if we have a token and are actually loading
-  if (apiToken && loading && !isRefreshing) {
+  // Show loading state
+  if (loading && !isRefreshing) {
     return (
       <div className="card">
         <div className="flex items-center justify-center py-12">
           <Activity className="h-8 w-8 animate-spin text-primary-600" />
           <span className="ml-2 text-lg text-gray-600">
-            Loading real market data from Trade Station...
+            Loading market data from database...
           </span>
         </div>
       </div>
@@ -213,40 +186,31 @@ export default function SignalDashboard({
       <div className="card">
         <div className="flex items-center justify-between mb-6">
             <div>
-              <h2 className="text-2xl font-bold text-gray-900">S&P Market Data</h2>
-              <p className="text-gray-600">
-                {apiToken ? 'Daily & 2-hour data from Trade Station API' : 'Daily & 2-hour market data for SPY, SPX & ES (Mock Data)'}
-              </p>
-              {apiToken ? (
-                <div className="mt-2 flex items-center space-x-2">
-                  <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-                  <span className="text-sm text-green-600 font-medium">Connected to Trade Station API</span>
-                </div>
-              ) : (
-                <div className="mt-2 flex items-center space-x-2">
-                  <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
-                  <span className="text-sm text-gray-600 font-medium">Using mock data - Add API token for real data</span>
-                </div>
-              )}
+                             <h2 className="text-2xl font-bold text-gray-900">S&P Market Data</h2>
+               <p className="text-gray-600">
+                 Daily & 2-hour data from database
+               </p>
+               <div className="mt-2 flex items-center space-x-2">
+                 <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                 <span className="text-sm text-green-600 font-medium">Connected to database</span>
+               </div>
               {lastUpdated && (
                 <p className="text-xs text-gray-500 mt-1">
                   Last updated: {formatTime(lastUpdated)}
                 </p>
               )}
             </div>
-            <div className="flex items-center space-x-3">
-              {apiToken && (
-                <button
-                  onClick={handleRefresh}
-                  disabled={isRefreshing}
-                  className="flex items-center space-x-2 px-3 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                >
-                  <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
-                  <span className="text-sm font-medium">
-                    {isRefreshing ? 'Refreshing...' : 'Refresh'}
-                  </span>
-                </button>
-              )}
+                         <div className="flex items-center space-x-3">
+               <button
+                 onClick={handleRefresh}
+                 disabled={isRefreshing}
+                 className="flex items-center space-x-2 px-3 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+               >
+                 <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+                 <span className="text-sm font-medium">
+                   {isRefreshing ? 'Refreshing...' : 'Refresh'}
+                 </span>
+               </button>
               <div className="flex items-center space-x-2">
                 <BarChart3 className="h-4 w-4 text-primary-600" />
                 <span className="text-sm text-gray-600">Daily & 2-Hour Data</span>
@@ -275,7 +239,20 @@ export default function SignalDashboard({
 
       {/* Market Data Cards */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {filteredData.map((data) => (
+        {filteredData.length === 0 ? (
+          <div className="col-span-full">
+            <div className="card">
+              <div className="flex items-center justify-center py-12">
+                <div className="text-center">
+                  <BarChart3 className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">No Data Available</h3>
+                  <p className="text-gray-600">No market data found for the selected instruments.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        ) : (
+          filteredData.map((data) => (
           <div key={data.symbol} className="card">
             <div className="flex items-start justify-between mb-4">
               <div>
@@ -286,52 +263,66 @@ export default function SignalDashboard({
                   </span>
                 </div>
                                         <p className="text-sm text-gray-600">
-                          Last updated: {new Date(data.daily.timestamp).toLocaleTimeString()}
+                          Last updated: {data.daily ? new Date(data.daily.timestamp).toLocaleTimeString() : 'No data available'}
                         </p>
                       </div>
                     </div>
 
                     {/* Daily Data */}
-                    <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-4">
-                      <h4 className="text-sm font-medium text-gray-700 mb-2">Daily Data</h4>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <p className="text-sm text-gray-500">Daily Price</p>
-                          <p className="text-xl font-bold text-gray-900">
-                            {formatCurrency(data.daily.price)}
-                          </p>
-                        </div>
-                        <div>
-                          <p className="text-sm text-gray-500">Daily Change</p>
-                          <p className={`text-lg font-semibold ${
-                            data.daily.change >= 0 ? 'text-success-600' : 'text-danger-600'
-                          }`}>
-                            {formatPercent(data.daily.change)}
-                          </p>
+                    {data.daily ? (
+                      <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-4">
+                        <h4 className="text-sm font-medium text-gray-700 mb-2">Daily Data</h4>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <p className="text-sm text-gray-500">Daily Price</p>
+                            <p className="text-xl font-bold text-gray-900">
+                              {formatCurrency(data.daily.price)}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-sm text-gray-500">Daily Change</p>
+                            <p className={`text-lg font-semibold ${
+                              data.daily.change >= 0 ? 'text-success-600' : 'text-danger-600'
+                            }`}>
+                              {formatPercent(data.daily.change)}
+                            </p>
+                          </div>
                         </div>
                       </div>
-                    </div>
+                    ) : (
+                      <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-4">
+                        <h4 className="text-sm font-medium text-gray-700 mb-2">Daily Data</h4>
+                        <p className="text-sm text-gray-500">No daily data available</p>
+                      </div>
+                    )}
 
                     {/* 2-Hour Data */}
-                    <div className="bg-purple-50 border border-purple-200 rounded-lg p-4 mb-4">
-                      <h4 className="text-sm font-medium text-purple-700 mb-2">2-Hour Data</h4>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <p className="text-sm text-gray-500">2-Hour Price</p>
-                          <p className="text-xl font-bold text-gray-900">
-                            {formatCurrency(data.hourly.price)}
-                          </p>
-                        </div>
-                        <div>
-                          <p className="text-sm text-gray-500">2-Hour Change</p>
-                          <p className={`text-lg font-semibold ${
-                            data.hourly.change >= 0 ? 'text-success-600' : 'text-danger-600'
-                          }`}>
-                            {formatPercent(data.hourly.change)}
-                          </p>
+                    {data.hourly ? (
+                      <div className="bg-purple-50 border border-purple-200 rounded-lg p-4 mb-4">
+                        <h4 className="text-sm font-medium text-purple-700 mb-2">2-Hour Data</h4>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <p className="text-sm text-gray-500">2-Hour Price</p>
+                            <p className="text-xl font-bold text-gray-900">
+                              {formatCurrency(data.hourly.price)}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-sm text-gray-500">2-Hour Change</p>
+                            <p className={`text-lg font-semibold ${
+                              data.hourly.change >= 0 ? 'text-success-600' : 'text-danger-600'
+                            }`}>
+                              {formatPercent(data.hourly.change)}
+                            </p>
+                          </div>
                         </div>
                       </div>
-                    </div>
+                    ) : (
+                      <div className="bg-purple-50 border border-purple-200 rounded-lg p-4 mb-4">
+                        <h4 className="text-sm font-medium text-purple-700 mb-2">2-Hour Data</h4>
+                        <p className="text-sm text-gray-500">No 2-hour data available</p>
+                      </div>
+                    )}
 
             {/* 89 SMA */}
             <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
@@ -339,14 +330,16 @@ export default function SignalDashboard({
               <p className="text-2xl font-bold text-green-900">
                 {formatCurrency(data.sma89)}
               </p>
-              <div className="mt-2">
-                <p className="text-sm text-green-600">
-                  {data.daily.price > data.sma89 ? 'Above SMA' : 'Below SMA'}
-                </p>
-                <p className="text-xs text-green-500">
-                  Distance: {formatCurrency(Math.abs(data.daily.price - data.sma89))}
-                </p>
-              </div>
+              {data.daily && (
+                <div className="mt-2">
+                  <p className="text-sm text-green-600">
+                    {data.daily.price > data.sma89 ? 'Above SMA' : 'Below SMA'}
+                  </p>
+                  <p className="text-xs text-green-500">
+                    Distance: {formatCurrency(Math.abs(data.daily.price - data.sma89))}
+                  </p>
+                </div>
+              )}
             </div>
 
             {/* 89 EMA */}
@@ -355,41 +348,53 @@ export default function SignalDashboard({
               <p className="text-2xl font-bold text-blue-900">
                 {formatCurrency(data.ema89)}
               </p>
-              <div className="mt-2">
-                <p className="text-sm text-blue-600">
-                  {data.daily.price > data.ema89 ? 'Above EMA' : 'Below EMA'}
-                </p>
-                <p className="text-xs text-blue-500">
-                  Distance: {formatCurrency(Math.abs(data.daily.price - data.ema89))}
-                </p>
-              </div>
+              {data.daily && (
+                <div className="mt-2">
+                  <p className="text-sm text-blue-600">
+                    {data.daily.price > data.ema89 ? 'Above EMA' : 'Below EMA'}
+                  </p>
+                  <p className="text-xs text-blue-500">
+                    Distance: {formatCurrency(Math.abs(data.daily.price - data.ema89))}
+                  </p>
+                </div>
+              )}
             </div>
 
-            {/* 2-Hour SMA */}
-            <div className="bg-purple-50 border border-purple-200 rounded-lg p-4 mb-4">
-              <h4 className="text-sm font-medium text-purple-700 mb-2">2-Hour Simple Moving Average (89-period)</h4>
-              <p className="text-2xl font-bold text-purple-900">
-                {formatCurrency(data.sma2h)}
-              </p>
-              <div className="mt-2">
-                <p className="text-sm text-purple-600">
-                  {data.hourly.price > data.sma2h ? 'Above 2H SMA' : 'Below 2H SMA'}
+            {/* 2-Hour SMA - Only show if we have actual 2-hour data */}
+            {data.hourly && (
+              <div className="bg-purple-50 border border-purple-200 rounded-lg p-4 mb-4">
+                <h4 className="text-sm font-medium text-purple-700 mb-2">2-Hour Simple Moving Average (89-period)</h4>
+                <p className="text-2xl font-bold text-purple-900">
+                  {formatCurrency(data.sma2h)}
                 </p>
-                <p className="text-xs text-purple-500">
-                  Distance: {formatCurrency(Math.abs(data.hourly.price - data.sma2h))}
-                </p>
+                <div className="mt-2">
+                  <p className="text-sm text-purple-600">
+                    {data.hourly.price > data.sma2h ? 'Above 2H SMA' : 'Below 2H SMA'}
+                  </p>
+                  <p className="text-xs text-purple-500">
+                    Distance: {formatCurrency(Math.abs(data.hourly.price - data.sma2h))}
+                  </p>
+                </div>
               </div>
-            </div>
+            )}
 
             {/* Volume */}
-            <div className="bg-gray-50 rounded-lg p-4">
-              <h4 className="text-sm font-medium text-gray-700 mb-2">Volume (Daily)</h4>
-              <p className="text-lg font-semibold text-gray-900">
-                {data.daily.volume.toLocaleString()}
-              </p>
-            </div>
+            {data.daily ? (
+              <div className="bg-gray-50 rounded-lg p-4">
+                <h4 className="text-sm font-medium text-gray-700 mb-2">Volume (Daily)</h4>
+                <p className="text-lg font-semibold text-gray-900">
+                  {data.daily.volume.toLocaleString()}
+                </p>
+              </div>
+            ) : (
+              <div className="bg-gray-50 rounded-lg p-4">
+                <h4 className="text-sm font-medium text-gray-700 mb-2">Volume (Daily)</h4>
+                <p className="text-sm text-gray-500">No volume data available</p>
+              </div>
+            )}
           </div>
-        ))}
+        ))
+        )}
       </div>
     </div>
   )
