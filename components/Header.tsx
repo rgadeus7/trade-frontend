@@ -54,9 +54,9 @@ export default function Header({ onMenuClick, portfolioData }: HeaderProps) {
               <div className="text-right">
                 <p className="text-sm text-gray-600">Today's P&L</p>
                 <p className={`text-lg font-semibold ${
-                  portfolioData.todayPnL >= 0 ? 'text-success-600' : 'text-danger-600'
+                  portfolioData.dailyChange >= 0 ? 'text-success-600' : 'text-danger-600'
                 }`}>
-                  {formatCurrency(portfolioData.todayPnL)}
+                  {formatCurrency(portfolioData.dailyChange)}
                 </p>
               </div>
             </div>
