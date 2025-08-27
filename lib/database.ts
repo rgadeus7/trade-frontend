@@ -2,7 +2,7 @@ import { supabase } from './supabase'
 import type { MarketData } from './supabase'
 
 // Get market data for a symbol and timeframe
-export async function getMarketData(symbol: string, timeframe: 'daily' | '2hour', limit: number = 300) {
+export async function getMarketData(symbol: string, timeframe: 'daily' | '2hour' | 'weekly' | 'monthly', limit: number = 300) {
   const { data, error } = await supabase
     .from('market_data')
     .select('*')
@@ -19,52 +19,10 @@ export async function getMarketData(symbol: string, timeframe: 'daily' | '2hour'
   return data as MarketData[]
 }
 
+
+
 // Note: Removed getLatestIndicators function - indicators are calculated on-demand
-
-// Get latest market data for all symbols
-export async function getLatestMarketData() {
-  // Map display symbols to actual database symbols
-  const symbolMap = {
-    'SPY': 'SPY',
-    'SPX': '$SPX.X',
-    'ES': '@ES',
-    'VIX': '$VIX.X'
-  }
-
-  const results: any[] = []
-
-  for (const [displaySymbol, dbSymbol] of Object.entries(symbolMap)) {
-    // Get daily data
-    try {
-      const dailyData = await getMarketData(dbSymbol, 'daily', 1)
-      if (dailyData && dailyData.length > 0) {
-        results.push({
-          ...dailyData[0],
-          displaySymbol,
-          timeframe: 'daily'
-        })
-      }
-    } catch (error) {
-      console.error(`Error fetching daily data for ${displaySymbol}:`, error)
-    }
-
-    // Get 2-hour data
-    try {
-      const hourlyData = await getMarketData(dbSymbol, '2hour', 1)
-      if (hourlyData && hourlyData.length > 0) {
-        results.push({
-          ...hourlyData[0],
-          displaySymbol,
-          timeframe: '2hour'
-        })
-      }
-    } catch (error) {
-      console.error(`Error fetching 2-hour data for ${displaySymbol}:`, error)
-    }
-  }
-
-  return results
-}
+// Note: Removed getLatestMarketData function - now using historical data for both display and indicators
 
 export async function insertMarketData(data: Omit<MarketData, 'id' | 'created_at'>[]) {
   const { error } = await supabase
@@ -82,7 +40,7 @@ export async function insertMarketData(data: Omit<MarketData, 'id' | 'created_at
 // Note: Removed insertIndicators function - indicators are calculated on-demand
 
 // Calculate technical indicators on-demand
-function calculateIndicators(data: MarketData[], timeframe: 'daily' | '2hour' = 'daily') {
+function calculateIndicators(data: MarketData[], timeframe: 'daily' | '2hour' | 'weekly' | 'monthly' = 'daily') {
   if (data.length === 0) return { sma89: 0, ema89: 0, sma2h: 0 }
 
   const prices = data.map(d => d.close).reverse() // Reverse to get chronological order
@@ -118,12 +76,12 @@ function calculateIndicators(data: MarketData[], timeframe: 'daily' | '2hour' = 
     return ema
   }
 
-  // Use 89-period SMA for both timeframes
-  if (timeframe === 'daily') {
+  // Use 89-period SMA for all timeframes
+  if (timeframe === 'daily' || timeframe === 'weekly' || timeframe === 'monthly') {
     return {
       sma89: calculateSMA(prices, 89),
       ema89: calculateEMA(prices, 89),
-      sma2h: 0 // Not applicable for daily data
+      sma2h: 0 // Not applicable for these timeframes
     }
   } else {
     // For 2-hour data, also use 89-period SMA
@@ -138,8 +96,6 @@ function calculateIndicators(data: MarketData[], timeframe: 'daily' | '2hour' = 
 // Get data for dashboard display with on-demand indicator calculation
 export async function getDashboardData() {
   try {
-    const latestData = await getLatestMarketData()
-    
     // Map display symbols to actual database symbols
     const symbolMap = {
       'SPY': 'SPY',
@@ -153,43 +109,94 @@ export async function getDashboardData() {
       ['SPY', 'SPX', 'ES', 'VIX'].map(async (displaySymbol) => {
         const dbSymbol = symbolMap[displaySymbol as keyof typeof symbolMap]
         
-                 // Get historical data for both timeframes (300 records is more than enough for 89-period SMA)
-         const dailyHistoricalData = await getMarketData(dbSymbol, 'daily', 300)
-         const hourlyHistoricalData = await getMarketData(dbSymbol, '2hour', 300)
-         
-         // Calculate indicators separately for each timeframe
-         const dailyIndicators = calculateIndicators(dailyHistoricalData, 'daily')
-         const hourlyIndicators = calculateIndicators(hourlyHistoricalData, '2hour')
-         
-                   // Debug logging for VIX - commented out for clean console
-          // if (displaySymbol === 'VIX') {
-          //   console.log(`VIX Debug - Daily data count: ${dailyHistoricalData.length}, Hourly data count: ${hourlyHistoricalData.length}`)
-          //   console.log(`VIX Debug - Daily indicators:`, dailyIndicators)
-          //   console.log(`VIX Debug - Hourly indicators:`, hourlyIndicators)
-          // }
+        // Get historical data for all timeframes (increased to 500 records for better indicator accuracy)
+        const dailyHistoricalData = await getMarketData(dbSymbol, 'daily', 500)
+        const hourlyHistoricalData = await getMarketData(dbSymbol, '2hour', 500)
+        const weeklyHistoricalData = await getMarketData(dbSymbol, 'weekly', 500)
+        const monthlyHistoricalData = await getMarketData(dbSymbol, 'monthly', 500)
         
-        const dailyData = latestData.find(d => d.displaySymbol === displaySymbol && d.timeframe === 'daily')
-        const hourlyData = latestData.find(d => d.displaySymbol === displaySymbol && d.timeframe === '2hour')
+        // Calculate indicators separately for each timeframe
+        const dailyIndicators = calculateIndicators(dailyHistoricalData, 'daily')
+        const hourlyIndicators = calculateIndicators(hourlyHistoricalData, '2hour')
+        const weeklyIndicators = calculateIndicators(weeklyHistoricalData, 'weekly')
+        const monthlyIndicators = calculateIndicators(monthlyHistoricalData, 'monthly')
         
-                           return {
-           symbol: displaySymbol,
-           instrumentType: displaySymbol as 'SPY' | 'SPX' | 'ES' | 'VIX',
-         daily: dailyData ? {
-           price: dailyData.close,
-           change: 0, // Calculate from previous data
-           volume: dailyData.volume,
-           timestamp: dailyData.timestamp
-         } : null,
-         hourly: hourlyData ? {
-           price: hourlyData.close,
-           change: 0, // Calculate from previous data
-           volume: hourlyData.volume,
-           timestamp: hourlyData.timestamp
-         } : null,
-         sma89: dailyIndicators.sma89 || 0, // From daily data, fallback to 0
-         ema89: dailyIndicators.ema89 || 0, // From daily data, fallback to 0
-         sma2h: hourlyIndicators.sma2h || 0 // From 2-hour data, fallback to 0
-       }
+        // Use the first record (most recent) from historical data for display
+        const latestDaily = dailyHistoricalData[0]
+        const latestHourly = hourlyHistoricalData[0]
+        const latestWeekly = weeklyHistoricalData[0]
+        const latestMonthly = monthlyHistoricalData[0]
+        
+        // Get yesterday's data from historical records (second record if available)
+        const yesterdayDaily = dailyHistoricalData.length > 1 ? dailyHistoricalData[1] : null
+        
+        // Calculate price changes for better analysis
+        const dailyChange = latestDaily && dailyHistoricalData.length > 1 
+          ? ((latestDaily.close - dailyHistoricalData[1].close) / dailyHistoricalData[1].close) * 100 
+          : 0
+        
+        const hourlyChange = latestHourly && hourlyHistoricalData.length > 1
+          ? ((latestHourly.close - hourlyHistoricalData[1].close) / hourlyHistoricalData[1].close) * 100
+          : 0
+        
+        // Debug logging for VIX - commented out for clean console
+        // if (displaySymbol === 'VIX') {
+        //   console.log(`VIX Debug - Daily data count: ${dailyHistoricalData.length}, Hourly data count: ${hourlyHistoricalData.length}`)
+        //   console.log(`VIX Debug - Daily indicators:`, dailyIndicators)
+        //   console.log(`VIX Debug - Hourly indicators:`, hourlyIndicators)
+        // }
+        
+        return {
+          symbol: displaySymbol,
+          instrumentType: displaySymbol as 'SPY' | 'SPX' | 'ES' | 'VIX',
+          daily: latestDaily ? {
+            price: latestDaily.close,
+            change: dailyChange, // Calculate from previous data
+            volume: latestDaily.volume,
+            timestamp: latestDaily.timestamp
+          } : null,
+          hourly: latestHourly ? {
+            price: latestHourly.close,
+            change: hourlyChange, // Calculate from previous data
+            volume: latestHourly.volume,
+            timestamp: latestHourly.timestamp
+          } : null,
+          yesterday: yesterdayDaily ? {
+            close: yesterdayDaily.close,
+            high: yesterdayDaily.high,
+            low: yesterdayDaily.low,
+            volume: yesterdayDaily.volume,
+            timestamp: yesterdayDaily.timestamp
+          } : null,
+          sma89: dailyIndicators.sma89 || 0, // From daily data, fallback to 0
+          ema89: dailyIndicators.ema89 || 0, // From daily data, fallback to 0
+          sma2h: hourlyIndicators.sma2h || 0, // From 2-hour data, fallback to 0
+          // Add weekly and monthly data
+          weekly: latestWeekly ? {
+            price: latestWeekly.close,
+            change: weeklyHistoricalData.length > 1 
+              ? ((latestWeekly.close - weeklyHistoricalData[1].close) / weeklyHistoricalData[1].close) * 100 
+              : 0,
+            volume: latestWeekly.volume,
+            timestamp: latestWeekly.timestamp
+          } : null,
+          monthly: latestMonthly ? {
+            price: latestMonthly.close,
+            change: monthlyHistoricalData.length > 1 
+              ? ((latestMonthly.close - monthlyHistoricalData[1].close) / monthlyHistoricalData[1].close) * 100 
+              : 0,
+            volume: latestMonthly.volume,
+            timestamp: latestMonthly.timestamp
+          } : null,
+          // Add indicators for weekly and monthly
+          weeklySMA: weeklyIndicators.sma89 || 0,
+          monthlySMA: monthlyIndicators.sma89 || 0,
+          // Add historical prices for RSI and Bollinger Bands calculations
+          dailyHistoricalPrices: dailyHistoricalData.map(d => d.close).reverse(), // Reverse to get chronological order
+          hourlyHistoricalPrices: hourlyHistoricalData.map(d => d.close).reverse(), // Reverse to get chronological order
+          weeklyHistoricalPrices: weeklyHistoricalData.map(d => d.close).reverse(), // Reverse to get chronological order
+          monthlyHistoricalPrices: monthlyHistoricalData.map(d => d.close).reverse() // Reverse to get chronological order
+        }
       })
     )
     

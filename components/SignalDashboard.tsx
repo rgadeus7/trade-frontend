@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { Activity, BarChart3, RefreshCw } from 'lucide-react'
+import TradingChecklist from './TradingChecklist'
 
 interface MarketData {
   symbol: string
@@ -15,6 +16,13 @@ interface MarketData {
   hourly: {
     price: number
     change: number
+    volume: number
+    timestamp: string
+  } | null
+  yesterday: {
+    close: number
+    high: number
+    low: number
     volume: number
     timestamp: string
   } | null
@@ -37,6 +45,7 @@ export default function SignalDashboard({
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
   const [selectedInstrument, setSelectedInstrument] = useState<string>('all')
   const [isRefreshing, setIsRefreshing] = useState(false)
+  const [showChecklist, setShowChecklist] = useState(true)
   const hasLoadedRef = useRef(false)
   const fetchedSymbolsRef = useRef<Set<string>>(new Set())
 
@@ -216,41 +225,59 @@ export default function SignalDashboard({
             </div>
         </div>
 
-        {/* Instrument Selector */}
-        <div className="flex items-center space-x-2 mb-6">
-          <span className="text-sm font-medium text-gray-700">Instrument:</span>
-          {instruments.map((instrument) => (
+        {/* Instrument Selector and View Toggle */}
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center space-x-2">
+            <span className="text-sm font-medium text-gray-700">Instrument:</span>
+            {instruments.map((instrument) => (
+              <button
+                key={instrument}
+                onClick={() => setSelectedInstrument(instrument)}
+                className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
+                  selectedInstrument === instrument
+                    ? 'bg-primary-600 text-white'
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                }`}
+              >
+                {instrument === 'all' ? 'All Markets' : instrument}
+              </button>
+            ))}
+          </div>
+          
+          <div className="flex items-center space-x-2">
             <button
-              key={instrument}
-              onClick={() => setSelectedInstrument(instrument)}
+              onClick={() => setShowChecklist(!showChecklist)}
               className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
-                selectedInstrument === instrument
-                  ? 'bg-primary-600 text-white'
+                showChecklist
+                  ? 'bg-green-600 text-white'
                   : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
               }`}
             >
-              {instrument === 'all' ? 'All Markets' : instrument}
+              {showChecklist ? 'Show Market Data' : 'Show Trading Checklist'}
             </button>
-          ))}
+          </div>
         </div>
       </div>
 
-      {/* Market Data Cards */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {filteredData.length === 0 ? (
-          <div className="col-span-full">
-            <div className="card">
-              <div className="flex items-center justify-center py-12">
-                <div className="text-center">
-                  <BarChart3 className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">No Data Available</h3>
-                  <p className="text-gray-600">No market data found for the selected instruments.</p>
+      {/* Conditional Content Display */}
+      {showChecklist ? (
+        <TradingChecklist marketData={filteredData} />
+      ) : (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {filteredData.length === 0 ? (
+            <div className="col-span-full">
+              <div className="card">
+                <div className="flex items-center justify-center py-12">
+                  <div className="text-center">
+                    <BarChart3 className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">No Data Available</h3>
+                    <p className="text-gray-600">No market data found for the selected instruments.</p>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-        ) : (
-          filteredData.map((data) => (
+          ) : (
+            filteredData.map((data) => (
           <div key={data.symbol} className="card">
             <div className="flex items-start justify-between mb-4">
               <div>
@@ -405,7 +432,8 @@ export default function SignalDashboard({
           </div>
         ))
         )}
-      </div>
+        </div>
+      )}
     </div>
   )
 }

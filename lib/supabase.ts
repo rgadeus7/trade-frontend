@@ -18,4 +18,12 @@ export interface MarketData {
   created_at: string
 }
 
+export interface YesterdayData {
+  close: number
+  high: number
+  low: number
+  volume: number
+  timestamp: string
+}
+
 // Note: Removed Indicators interface - indicators are calculated on-demand

@@ -1,0 +1,60 @@
+{
+  "indicators": {
+    "sma": {
+      "strengthThreshold": 0.02,
+      "description": "Percentage deviation from SMA for STRONG vs MODERATE strength"
+    },
+    "rsi": {
+      "overbought": {
+        "strong": 80,
+        "moderate": 70
+      },
+      "bullish": {
+        "strong": 60,
+        "moderate": 50
+      },
+      "bearish": {
+        "strong": 40,
+        "moderate": 50
+      },
+      "oversold": {
+        "strong": 20,
+        "moderate": 30
+      },
+      "description": "RSI thresholds for different status classifications"
+    },
+    "bollingerBands": {
+      "strengthThreshold": 0.01,
+      "description": "Percentage deviation from band for STRONG vs MODERATE strength"
+    },
+    "priceAction": {
+      "strengthThreshold": 0.01,
+      "description": "Percentage price difference for STRONG vs MODERATE strength"
+    },
+    "gapAnalysis": {
+      "strengthThreshold": 0.01,
+      "description": "Percentage gap size for STRONG vs MODERATE strength"
+    }
+  },
+  "statusMapping": {
+    "sma": {
+      "bullish": "Price > SMA",
+      "bearish": "Price < SMA"
+    },
+    "rsi": {
+      "overbought": "RSI > 70",
+      "bullish": "RSI > 50",
+      "bearish": "RSI < 50",
+      "oversold": "RSI < 30"
+    },
+    "bollingerBands": {
+      "overbought": "Price > Upper Band",
+      "neutral": "Price Between Bands",
+      "oversold": "Price < Lower Band"
+    },
+    "priceAction": {
+      "bullish": "Condition met (price above reference)",
+      "bearish": "Condition not met (price below reference)"
+    }
+  }
+}
