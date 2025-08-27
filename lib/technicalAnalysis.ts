@@ -35,7 +35,9 @@ export class TechnicalAnalysis {
       fastPeriod: 12, 
       slowPeriod: 26, 
       signalPeriod: 9, 
-      values: prices 
+      values: prices,
+      SimpleMAOscillator: true,
+      SimpleMASignal: true
     })
     
     const lastMACD = macdValues[macdValues.length - 1]

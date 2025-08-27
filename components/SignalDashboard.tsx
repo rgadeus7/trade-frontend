@@ -3,33 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { Activity, BarChart3, RefreshCw } from 'lucide-react'
 import TradingChecklist from './TradingChecklist'
-
-interface MarketData {
-  symbol: string
-  instrumentType: 'SPY' | 'SPX' | 'ES' | 'VIX'
-  daily: {
-    price: number
-    change: number
-    volume: number
-    timestamp: string
-  } | null
-  hourly: {
-    price: number
-    change: number
-    volume: number
-    timestamp: string
-  } | null
-  yesterday: {
-    close: number
-    high: number
-    low: number
-    volume: number
-    timestamp: string
-  } | null
-  sma89: number
-  ema89: number
-  sma2h: number // 2-hour SMA
-}
+import { MarketData } from '../types/market'
 
 interface SignalDashboardProps {
   watchlist?: string[]
