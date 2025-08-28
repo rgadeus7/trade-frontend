@@ -1,60 +1,264 @@
 {
-  "indicators": {
-    "sma": {
-      "strengthThreshold": 0.02,
-      "description": "Percentage deviation from SMA for STRONG vs MODERATE strength"
+  "indicatorCategories": {
+    "trend": {
+      "description": "Indicators that show overall trend direction",
+      "indicators": ["sma", "ema", "macd", "adx", "priceAction", "gapAnalysis"],
+      "statusValues": ["BULLISH", "BEARISH", "NEUTRAL"],
+      "buySignal": "Majority of trend indicators are BULLISH",
+      "sellSignal": "Majority of trend indicators are BEARISH"
     },
-    "rsi": {
-      "overbought": {
-        "strong": 80,
-        "moderate": 70
-      },
-      "bullish": {
-        "strong": 60,
-        "moderate": 50
-      },
-      "bearish": {
-        "strong": 40,
-        "moderate": 50
-      },
-      "oversold": {
-        "strong": 20,
-        "moderate": 30
-      },
-      "description": "RSI thresholds for different status classifications"
+    "momentum": {
+      "description": "Oscillators that show overbought/oversold conditions",
+      "indicators": ["rsi", "stoch", "cci", "williamsR"],
+      "statusValues": ["OVERBOUGHT", "OVERSOLD", "NEUTRAL"],
+      "buySignal": "Momentum indicators show OVERSOLD conditions",
+      "sellSignal": "Momentum indicators show OVERBOUGHT conditions"
     },
-    "bollingerBands": {
-      "strengthThreshold": 0.01,
-      "description": "Percentage deviation from band for STRONG vs MODERATE strength"
+    "volatility": {
+      "description": "Indicators that measure market volatility",
+      "indicators": ["bollingerBands", "atr", "keltner", "donchian"],
+      "statusValues": ["HIGH_VOLATILITY", "LOW_VOLATILITY", "NORMAL_VOLATILITY"],
+      "buySignal": "Low volatility suggests potential breakout",
+      "sellSignal": "High volatility suggests potential reversal"
     },
-    "priceAction": {
-      "strengthThreshold": 0.01,
-      "description": "Percentage price difference for STRONG vs MODERATE strength"
+    "volume": {
+      "description": "Volume-based indicators for confirmation",
+      "indicators": ["volumeSma", "obv", "vwap", "moneyFlow"],
+      "statusValues": ["HIGH_VOLUME", "LOW_VOLUME", "NORMAL_VOLUME"],
+      "buySignal": "High volume confirms bullish moves",
+      "sellSignal": "High volume confirms bearish moves"
     },
-    "gapAnalysis": {
-      "strengthThreshold": 0.01,
-      "description": "Percentage gap size for STRONG vs MODERATE strength"
+    "support_resistance": {
+      "description": "Price levels that act as support or resistance",
+      "indicators": ["pivotPoints", "fibonacci", "keyLevels"],
+      "statusValues": ["ABOVE_RESISTANCE", "BELOW_SUPPORT", "NEAR_LEVEL", "BETWEEN_LEVELS"],
+      "buySignal": "Price near support level",
+      "sellSignal": "Price near resistance level"
     }
   },
-  "statusMapping": {
+  "indicators": {
     "sma": {
-      "bullish": "Price > SMA",
-      "bearish": "Price < SMA"
+      "type": "trend",
+      "periods": [20, 50, 89, 200],
+      "strengthThreshold": 0.02,
+      "description": "Simple Moving Average - trend direction indicator",
+      "configurable": {
+        "bullishThreshold": "Price > SMA",
+        "bearishThreshold": "Price < SMA",
+        "neutralThreshold": "Price within 0.5% of SMA"
+      }
+    },
+    "ema": {
+      "type": "trend",
+      "periods": [12, 26, 50, 89],
+      "strengthThreshold": 0.02,
+      "description": "Exponential Moving Average - trend direction indicator",
+      "configurable": {
+        "bullishThreshold": "Price > EMA",
+        "bearishThreshold": "Price < EMA",
+        "neutralThreshold": "Price within 0.5% of EMA"
+      }
     },
     "rsi": {
-      "overbought": "RSI > 70",
-      "bullish": "RSI > 50",
-      "bearish": "RSI < 50",
-      "oversold": "RSI < 30"
+      "type": "momentum",
+      "periods": [14, 21],
+      "description": "Relative Strength Index - momentum oscillator",
+      "configurable": {
+        "overbought": {
+          "strong": 80,
+          "moderate": 70,
+          "weak": 65
+        },
+        "oversold": {
+          "strong": 20,
+          "moderate": 30,
+          "weak": 35
+        },
+        "neutral": {
+          "upper": 60,
+          "lower": 40
+        }
+      }
     },
     "bollingerBands": {
-      "overbought": "Price > Upper Band",
-      "neutral": "Price Between Bands",
-      "oversold": "Price < Lower Band"
+      "type": "volatility",
+      "periods": [20, 50, 89],
+      "stdDev": 2,
+      "description": "Bollinger Bands - volatility and trend indicator",
+      "configurable": {
+        "overbought": "Price > Upper Band",
+        "oversold": "Price < Lower Band",
+        "neutral": "Price between bands",
+        "squeeze": "Band width < 20% of middle band"
+      }
+    },
+    "macd": {
+      "type": "trend",
+      "fastPeriod": 12,
+      "slowPeriod": 26,
+      "signalPeriod": 9,
+      "description": "MACD - trend and momentum indicator",
+      "configurable": {
+        "bullish": "MACD > Signal Line",
+        "bearish": "MACD < Signal Line",
+        "strongBullish": "MACD > 0 and rising",
+        "strongBearish": "MACD < 0 and falling"
+      }
+    },
+    "stoch": {
+      "type": "momentum",
+      "kPeriod": 14,
+      "dPeriod": 3,
+      "description": "Stochastic Oscillator - momentum indicator",
+      "configurable": {
+        "overbought": {
+          "strong": 90,
+          "moderate": 80
+        },
+        "oversold": {
+          "strong": 10,
+          "moderate": 20
+        }
+      }
+    },
+    "volumeSma": {
+      "type": "volume",
+      "periods": [20, 50],
+      "description": "Volume Simple Moving Average",
+      "configurable": {
+        "highVolume": "Current volume > 1.5x SMA",
+        "lowVolume": "Current volume < 0.5x SMA",
+        "normalVolume": "Current volume between 0.5x and 1.5x SMA"
+      }
+    },
+    "vwap": {
+      "type": "volume",
+      "description": "Volume Weighted Average Price",
+      "configurable": {
+        "bullish": "Price > VWAP",
+        "bearish": "Price < VWAP",
+        "neutral": "Price within 0.2% of VWAP"
+      }
+    },
+    "atr": {
+      "type": "volatility",
+      "periods": [14, 21],
+      "description": "Average True Range - volatility indicator",
+      "configurable": {
+        "highVolatility": "ATR > 2x 20-period average",
+        "lowVolatility": "ATR < 0.5x 20-period average",
+        "normalVolatility": "ATR between 0.5x and 2x average"
+      }
+    },
+    "adx": {
+      "type": "trend",
+      "period": 14,
+      "description": "Average Directional Index - trend strength",
+      "configurable": {
+        "strongTrend": "ADX > 25",
+        "weakTrend": "ADX < 20",
+        "trending": "ADX > 20"
+      }
     },
     "priceAction": {
-      "bullish": "Condition met (price above reference)",
-      "bearish": "Condition not met (price below reference)"
+      "type": "trend",
+      "description": "Price action patterns and levels",
+      "configurable": {
+        "bullish": "Higher highs and higher lows",
+        "bearish": "Lower highs and lower lows",
+        "consolidation": "Sideways price action"
+      }
+    },
+    "gapAnalysis": {
+      "type": "trend",
+      "description": "Gap analysis between sessions",
+      "configurable": {
+        "gapUp": "Open > Previous close by > 0.5%",
+        "gapDown": "Open < Previous close by > 0.5%",
+        "noGap": "Open within 0.5% of previous close"
+      }
+    }
+  },
+  "signalLogic": {
+    "buyConditions": {
+      "primary": [
+        "Majority of trend indicators are BULLISH",
+        "Momentum indicators show OVERSOLD or NEUTRAL",
+        "Volume confirms price action"
+      ],
+      "secondary": [
+        "Price near support levels",
+        "Low volatility suggesting potential breakout",
+        "RSI between 30-70 (not overbought)"
+      ],
+      "strongBuy": [
+        "All trend indicators BULLISH",
+        "RSI < 40 (oversold)",
+        "High volume confirmation",
+        "Price at strong support"
+      ]
+    },
+    "sellConditions": {
+      "primary": [
+        "Majority of trend indicators are BEARISH",
+        "Momentum indicators show OVERBOUGHT or NEUTRAL",
+        "Volume confirms price action"
+      ],
+      "secondary": [
+        "Price near resistance levels",
+        "High volatility suggesting potential reversal",
+        "RSI between 30-70 (not oversold)"
+      ],
+      "strongSell": [
+        "All trend indicators BEARISH",
+        "RSI > 70 (overbought)",
+        "High volume confirmation",
+        "Price at strong resistance"
+      ]
+    },
+    "neutralConditions": [
+      "Mixed signals across categories",
+      "Low volume suggesting lack of conviction",
+      "Price in consolidation pattern",
+      "Indicators showing conflicting signals"
+    ]
+  },
+  "timeframeAnalysis": {
+    "monthly": {
+      "description": "Long-term trend analysis",
+      "weight": 0.3,
+      "indicators": ["sma", "ema", "macd", "adx"]
+    },
+    "weekly": {
+      "description": "Medium-term trend analysis", 
+      "weight": 0.25,
+      "indicators": ["sma", "ema", "rsi", "bollingerBands", "macd"]
+    },
+    "daily": {
+      "description": "Short-term trend analysis",
+      "weight": 0.25,
+      "indicators": ["sma", "ema", "rsi", "bollingerBands", "macd", "volumeSma", "vwap"]
+    },
+    "hourly": {
+      "description": "Intraday analysis",
+      "weight": 0.2,
+      "indicators": ["sma", "rsi", "bollingerBands", "volumeSma", "vwap", "atr"]
+    }
+  },
+  "riskManagement": {
+    "stopLoss": {
+      "percentage": 0.02,
+      "atrMultiplier": 2,
+      "supportLevel": true
+    },
+    "takeProfit": {
+      "riskRewardRatio": 2,
+      "resistanceLevel": true,
+      "trailingStop": true
+    },
+    "positionSizing": {
+      "maxRiskPerTrade": 0.02,
+      "maxPortfolioRisk": 0.06
     }
   }
 }

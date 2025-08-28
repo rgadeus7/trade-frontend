@@ -8,7 +8,9 @@ import {
   getRSIThresholds, 
   getBollingerBandsStrengthThreshold, 
   getPriceActionStrengthThreshold, 
-  getGapAnalysisStrengthThreshold 
+  getGapAnalysisStrengthThreshold,
+  isDirectionalIndicator,
+  isMomentumIndicator
 } from '../config/trading-config'
 import { MarketData } from '../types/market'
 
@@ -38,7 +40,7 @@ interface TimeframeAnalysis {
 }
 
 export default function TradingChecklist({ marketData }: TradingChecklistProps) {
-  const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['daily-analysis', '2h-analysis', 'weekly-analysis', 'monthly-analysis']))
+  const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set([]))
   const [filterStatus, setFilterStatus] = useState<'all' | 'met' | 'not-met'>('all')
   const [sortBy, setSortBy] = useState<'default' | 'status' | 'alphabetical'>('default')
 
@@ -87,18 +89,34 @@ export default function TradingChecklist({ marketData }: TradingChecklistProps) 
       let rsiStatus: 'BULLISH' | 'BEARISH' | 'NEUTRAL' | 'OVERBOUGHT' | 'OVERSOLD'
       let rsiStrength: 'STRONG' | 'MODERATE' | 'WEAK'
       
-      if (dailyRSI > rsiThresholds.overbought.moderate) {
-        rsiStatus = 'OVERBOUGHT'
-        rsiStrength = dailyRSI > rsiThresholds.overbought.strong ? 'STRONG' : 'MODERATE'
-      } else if (dailyRSI < rsiThresholds.oversold.moderate) {
-        rsiStatus = 'OVERSOLD'
-        rsiStrength = dailyRSI < rsiThresholds.oversold.strong ? 'STRONG' : 'MODERATE'
-      } else if (dailyRSI > rsiThresholds.bullish.moderate) {
-        rsiStatus = 'BULLISH'
-        rsiStrength = dailyRSI > rsiThresholds.bullish.strong ? 'STRONG' : 'MODERATE'
+             // Check if thresholds exist and are objects
+       if (rsiThresholds.overbought && typeof rsiThresholds.overbought === 'object' && 'moderate' in rsiThresholds.overbought) {
+         const overbought = rsiThresholds.overbought as { strong: number; moderate: number; weak?: number }
+         const oversold = rsiThresholds.oversold as { strong: number; moderate: number; weak?: number }
+         const neutral = rsiThresholds.neutral as { upper: number; lower: number }
+         
+         if (dailyRSI > overbought.moderate) {
+           rsiStatus = 'OVERBOUGHT'
+           rsiStrength = dailyRSI > overbought.strong ? 'STRONG' : 'MODERATE'
+         } else if (dailyRSI < oversold.moderate) {
+           rsiStatus = 'OVERSOLD'
+           rsiStrength = dailyRSI < oversold.strong ? 'STRONG' : 'MODERATE'
+         } else {
+           rsiStatus = 'NEUTRAL'
+           rsiStrength = 'WEAK'
+         }
       } else {
-        rsiStatus = 'BEARISH'
-        rsiStrength = dailyRSI < rsiThresholds.bearish.strong ? 'STRONG' : 'MODERATE'
+        // Fallback to simple logic if thresholds are not properly configured
+        if (dailyRSI > 70) {
+          rsiStatus = 'OVERBOUGHT'
+          rsiStrength = dailyRSI > 80 ? 'STRONG' : 'MODERATE'
+        } else if (dailyRSI < 30) {
+          rsiStatus = 'OVERSOLD'
+          rsiStrength = dailyRSI < 20 ? 'STRONG' : 'MODERATE'
+        } else {
+          rsiStatus = 'NEUTRAL'
+          rsiStrength = 'WEAK'
+        }
       }
       
       dailyTechnicalConditions.push({
@@ -269,26 +287,44 @@ export default function TradingChecklist({ marketData }: TradingChecklistProps) 
       }
     ]
 
-    // Add 2H RSI if historical data is available
-    if (spxData.hourlyHistoricalPrices && spxData.hourlyHistoricalPrices.length >= 15) {
-      const hourlyRSI = TechnicalAnalysis.calculateRSI(spxData.hourlyHistoricalPrices, 14)
-      const rsiThresholds = getRSIThresholds()
-      let hourlyRsiStatus: 'BULLISH' | 'BEARISH' | 'NEUTRAL' | 'OVERBOUGHT' | 'OVERSOLD'
-      let hourlyRsiStrength: 'STRONG' | 'MODERATE' | 'WEAK'
-      
-      if (hourlyRSI > rsiThresholds.overbought.moderate) {
-        hourlyRsiStatus = 'OVERBOUGHT'
-        hourlyRsiStrength = hourlyRSI > rsiThresholds.overbought.strong ? 'STRONG' : 'MODERATE'
-      } else if (hourlyRSI < rsiThresholds.oversold.moderate) {
-        hourlyRsiStatus = 'OVERSOLD'
-        hourlyRsiStrength = hourlyRSI < rsiThresholds.oversold.strong ? 'STRONG' : 'MODERATE'
-      } else if (hourlyRSI > rsiThresholds.bullish.moderate) {
-        hourlyRsiStatus = 'BULLISH'
-        hourlyRsiStrength = hourlyRSI > rsiThresholds.bullish.strong ? 'STRONG' : 'MODERATE'
-      } else {
-        hourlyRsiStatus = 'BEARISH'
-        hourlyRsiStrength = hourlyRSI < rsiThresholds.bearish.strong ? 'STRONG' : 'MODERATE'
-      }
+         // Add 2H RSI if historical data is available
+     if (spxData.hourlyHistoricalPrices && spxData.hourlyHistoricalPrices.length >= 15) {
+       const hourlyRSI = TechnicalAnalysis.calculateRSI(spxData.hourlyHistoricalPrices, 14)
+       const rsiThresholds = getRSIThresholds()
+       let hourlyRsiStatus: 'BULLISH' | 'BEARISH' | 'NEUTRAL' | 'OVERBOUGHT' | 'OVERSOLD'
+       let hourlyRsiStrength: 'STRONG' | 'MODERATE' | 'WEAK'
+       
+       // Check if thresholds exist and are objects
+       if (rsiThresholds.overbought && typeof rsiThresholds.overbought === 'object' && 'moderate' in rsiThresholds.overbought &&
+           rsiThresholds.oversold && typeof rsiThresholds.oversold === 'object' && 'moderate' in rsiThresholds.oversold &&
+           rsiThresholds.neutral && typeof rsiThresholds.neutral === 'object' && 'upper' in rsiThresholds.neutral) {
+         const overbought = rsiThresholds.overbought as { strong: number; moderate: number; weak?: number }
+         const oversold = rsiThresholds.oversold as { strong: number; moderate: number; weak?: number }
+         const neutral = rsiThresholds.neutral as { upper: number; lower: number }
+         
+         if (hourlyRSI > overbought.moderate) {
+           hourlyRsiStatus = 'OVERBOUGHT'
+           hourlyRsiStrength = hourlyRSI > overbought.strong ? 'STRONG' : 'MODERATE'
+         } else if (hourlyRSI < oversold.moderate) {
+           hourlyRsiStatus = 'OVERSOLD'
+           hourlyRsiStrength = hourlyRSI < oversold.strong ? 'STRONG' : 'MODERATE'
+                   } else {
+            hourlyRsiStatus = 'NEUTRAL'
+            hourlyRsiStrength = 'WEAK'
+          }
+       } else {
+         // Fallback to simple logic if thresholds are not properly configured
+         if (hourlyRSI > 70) {
+           hourlyRsiStatus = 'OVERBOUGHT'
+           hourlyRsiStrength = hourlyRSI > 80 ? 'STRONG' : 'MODERATE'
+         } else if (hourlyRSI < 30) {
+           hourlyRsiStatus = 'OVERSOLD'
+           hourlyRsiStrength = hourlyRSI < 20 ? 'STRONG' : 'MODERATE'
+                   } else {
+            hourlyRsiStatus = 'NEUTRAL'
+            hourlyRsiStrength = 'WEAK'
+          }
+       }
       
       hourlyTechnicalConditions.push({
         id: '2h-rsi-above-50',
@@ -468,18 +504,36 @@ export default function TradingChecklist({ marketData }: TradingChecklistProps) 
         let weeklyRsiStatus: 'BULLISH' | 'BEARISH' | 'NEUTRAL' | 'OVERBOUGHT' | 'OVERSOLD'
         let weeklyRsiStrength: 'STRONG' | 'MODERATE' | 'WEAK'
         
-        if (weeklyRSI > rsiThresholds.overbought.moderate) {
-          weeklyRsiStatus = 'OVERBOUGHT'
-          weeklyRsiStrength = weeklyRSI > rsiThresholds.overbought.strong ? 'STRONG' : 'MODERATE'
-        } else if (weeklyRSI < rsiThresholds.oversold.moderate) {
-          weeklyRsiStatus = 'OVERSOLD'
-          weeklyRsiStrength = weeklyRSI < rsiThresholds.oversold.strong ? 'STRONG' : 'MODERATE'
-        } else if (weeklyRSI > rsiThresholds.bullish.moderate) {
-          weeklyRsiStatus = 'BULLISH'
-          weeklyRsiStrength = weeklyRSI > rsiThresholds.bullish.strong ? 'STRONG' : 'MODERATE'
+        // Check if thresholds exist and are objects
+        if (rsiThresholds.overbought && typeof rsiThresholds.overbought === 'object' && 'moderate' in rsiThresholds.overbought &&
+            rsiThresholds.oversold && typeof rsiThresholds.oversold === 'object' && 'moderate' in rsiThresholds.oversold &&
+            rsiThresholds.neutral && typeof rsiThresholds.neutral === 'object' && 'upper' in rsiThresholds.neutral) {
+          const overbought = rsiThresholds.overbought as { strong: number; moderate: number; weak?: number }
+          const oversold = rsiThresholds.oversold as { strong: number; moderate: number; weak?: number }
+          const neutral = rsiThresholds.neutral as { upper: number; lower: number }
+          
+          if (weeklyRSI > overbought.moderate) {
+            weeklyRsiStatus = 'OVERBOUGHT'
+            weeklyRsiStrength = weeklyRSI > overbought.strong ? 'STRONG' : 'MODERATE'
+          } else if (weeklyRSI < oversold.moderate) {
+            weeklyRsiStatus = 'OVERSOLD'
+            weeklyRsiStrength = weeklyRSI < oversold.strong ? 'STRONG' : 'MODERATE'
+                     } else {
+             weeklyRsiStatus = 'NEUTRAL'
+             weeklyRsiStrength = 'WEAK'
+           }
         } else {
-          weeklyRsiStatus = 'BEARISH'
-          weeklyRsiStrength = weeklyRSI < rsiThresholds.bearish.strong ? 'STRONG' : 'MODERATE'
+          // Fallback to simple logic if thresholds are not properly configured
+          if (weeklyRSI > 70) {
+            weeklyRsiStatus = 'OVERBOUGHT'
+            weeklyRsiStrength = weeklyRSI > 80 ? 'STRONG' : 'MODERATE'
+          } else if (weeklyRSI < 30) {
+            weeklyRsiStatus = 'OVERSOLD'
+            weeklyRsiStrength = weeklyRSI < 20 ? 'STRONG' : 'MODERATE'
+                     } else {
+             weeklyRsiStatus = 'NEUTRAL'
+             weeklyRsiStrength = 'WEAK'
+           }
         }
         
         weeklyTechnicalConditions.push({
@@ -502,10 +556,10 @@ export default function TradingChecklist({ marketData }: TradingChecklistProps) 
         
         if (weeklyPrice > bb20.upper) {
           bb20Status = 'OVERBOUGHT'
-          bb20Strength = (weeklyPrice - bb20.upper) / bb20.upper > 0.01 ? 'STRONG' : 'MODERATE'
+          bb20Strength = (weeklyPrice - bb20.upper) / bb20.upper > getBollingerBandsStrengthThreshold() ? 'STRONG' : 'MODERATE'
         } else if (weeklyPrice < bb20.lower) {
           bb20Status = 'OVERSOLD'
-          bb20Strength = (bb20.lower - weeklyPrice) / bb20.lower > 0.01 ? 'STRONG' : 'MODERATE'
+          bb20Strength = (bb20.lower - weeklyPrice) / bb20.lower > getBollingerBandsStrengthThreshold() ? 'STRONG' : 'MODERATE'
         } else {
           bb20Status = 'NEUTRAL'
           bb20Strength = 'WEAK'
@@ -528,16 +582,16 @@ export default function TradingChecklist({ marketData }: TradingChecklistProps) 
         let bb50Status: 'BULLISH' | 'BEARISH' | 'NEUTRAL' | 'OVERBOUGHT' | 'OVERSOLD'
         let bb50Strength: 'STRONG' | 'MODERATE' | 'WEAK'
         
-        if (weeklyPrice > bb50.upper) {
-          bb50Status = 'OVERBOUGHT'
-          bb50Strength = (weeklyPrice - bb50.upper) / bb50.upper > 0.01 ? 'STRONG' : 'MODERATE'
-        } else if (weeklyPrice < bb50.lower) {
-          bb50Status = 'OVERSOLD'
-          bb50Strength = (bb50.lower - weeklyPrice) / bb50.lower > 0.01 ? 'STRONG' : 'MODERATE'
-        } else {
-          bb50Status = 'NEUTRAL'
-          bb50Strength = 'WEAK'
-        }
+                 if (weeklyPrice > bb50.upper) {
+           bb50Status = 'OVERBOUGHT'
+           bb50Strength = (weeklyPrice - bb50.upper) / bb50.upper > getBollingerBandsStrengthThreshold() ? 'STRONG' : 'MODERATE'
+         } else if (weeklyPrice < bb50.lower) {
+           bb50Status = 'OVERSOLD'
+           bb50Strength = (bb50.lower - weeklyPrice) / bb50.lower > getBollingerBandsStrengthThreshold() ? 'STRONG' : 'MODERATE'
+         } else {
+           bb50Status = 'NEUTRAL'
+           bb50Strength = 'WEAK'
+         }
 
         weeklyTechnicalConditions.push({
           id: 'weekly-bb50-position',
@@ -556,16 +610,16 @@ export default function TradingChecklist({ marketData }: TradingChecklistProps) 
         let bb89Status: 'BULLISH' | 'BEARISH' | 'NEUTRAL' | 'OVERBOUGHT' | 'OVERSOLD'
         let bb89Strength: 'STRONG' | 'MODERATE' | 'WEAK'
         
-        if (weeklyPrice > bb89.upper) {
-          bb89Status = 'OVERBOUGHT'
-          bb89Strength = (weeklyPrice - bb89.upper) / bb89.upper > 0.01 ? 'STRONG' : 'MODERATE'
-        } else if (weeklyPrice < bb89.lower) {
-          bb89Status = 'OVERSOLD'
-          bb89Strength = (bb89.lower - weeklyPrice) / bb89.lower > 0.01 ? 'STRONG' : 'MODERATE'
-        } else {
-          bb89Status = 'NEUTRAL'
-          bb89Strength = 'WEAK'
-        }
+                 if (weeklyPrice > bb89.upper) {
+           bb89Status = 'OVERBOUGHT'
+           bb89Strength = (weeklyPrice - bb89.upper) / bb89.upper > getBollingerBandsStrengthThreshold() ? 'STRONG' : 'MODERATE'
+         } else if (weeklyPrice < bb89.lower) {
+           bb89Status = 'OVERSOLD'
+           bb89Strength = (bb89.lower - weeklyPrice) / bb89.lower > getBollingerBandsStrengthThreshold() ? 'STRONG' : 'MODERATE'
+         } else {
+           bb89Status = 'NEUTRAL'
+           bb89Strength = 'WEAK'
+         }
 
         weeklyTechnicalConditions.push({
           id: 'weekly-bb89-position',
@@ -614,33 +668,52 @@ export default function TradingChecklist({ marketData }: TradingChecklistProps) 
 
       // Monthly Technical Analysis Group
       const monthlyTechnicalConditions: ChecklistItem[] = [
-        {
-          id: 'monthly-above-sma',
-          label: 'Monthly Close > Monthly 89 SMA',
-          status: monthlyPrice > monthlySMA ? 'BULLISH' : 'BEARISH',
-          strength: Math.abs(monthlyPrice - monthlySMA) / monthlySMA > 0.02 ? 'STRONG' : 'MODERATE',
-          description: `SPX: $${monthlyPrice.toFixed(2)} | 89 SMA: $${monthlySMA.toFixed(2)}`
-        }
+                 {
+           id: 'monthly-above-sma',
+           label: 'Monthly Close > Monthly 89 SMA',
+           status: monthlyPrice > monthlySMA ? 'BULLISH' : 'BEARISH',
+           strength: Math.abs(monthlyPrice - monthlySMA) / monthlySMA > getSMAStrengthThreshold() ? 'STRONG' : 'MODERATE',
+           description: `SPX: $${monthlyPrice.toFixed(2)} | 89 SMA: $${monthlySMA.toFixed(2)}`
+         }
       ]
 
       // Add Monthly RSI if historical data is available
       if (spxData.monthlyHistoricalPrices && spxData.monthlyHistoricalPrices.length >= 15) {
         const monthlyRSI = TechnicalAnalysis.calculateRSI(spxData.monthlyHistoricalPrices, 14)
+        const rsiThresholds = getRSIThresholds()
         let monthlyRsiStatus: 'BULLISH' | 'BEARISH' | 'NEUTRAL' | 'OVERBOUGHT' | 'OVERSOLD'
         let monthlyRsiStrength: 'STRONG' | 'MODERATE' | 'WEAK'
         
-        if (monthlyRSI > 70) {
-          monthlyRsiStatus = 'OVERBOUGHT'
-          monthlyRsiStrength = monthlyRSI > 80 ? 'STRONG' : 'MODERATE'
-        } else if (monthlyRSI < 30) {
-          monthlyRsiStatus = 'OVERSOLD'
-          monthlyRsiStrength = monthlyRSI < 20 ? 'STRONG' : 'MODERATE'
-        } else if (monthlyRSI > 50) {
-          monthlyRsiStatus = 'BULLISH'
-          monthlyRsiStrength = monthlyRSI > 60 ? 'STRONG' : 'MODERATE'
+        // Check if thresholds exist and are objects
+        if (rsiThresholds.overbought && typeof rsiThresholds.overbought === 'object' && 'moderate' in rsiThresholds.overbought &&
+            rsiThresholds.oversold && typeof rsiThresholds.oversold === 'object' && 'moderate' in rsiThresholds.oversold &&
+            rsiThresholds.neutral && typeof rsiThresholds.neutral === 'object' && 'upper' in rsiThresholds.neutral) {
+          const overbought = rsiThresholds.overbought as { strong: number; moderate: number; weak?: number }
+          const oversold = rsiThresholds.oversold as { strong: number; moderate: number; weak?: number }
+          const neutral = rsiThresholds.neutral as { upper: number; lower: number }
+          
+          if (monthlyRSI > overbought.moderate) {
+            monthlyRsiStatus = 'OVERBOUGHT'
+            monthlyRsiStrength = monthlyRSI > overbought.strong ? 'STRONG' : 'MODERATE'
+          } else if (monthlyRSI < oversold.moderate) {
+            monthlyRsiStatus = 'OVERSOLD'
+            monthlyRsiStrength = monthlyRSI < oversold.strong ? 'STRONG' : 'MODERATE'
+                     } else {
+             monthlyRsiStatus = 'NEUTRAL'
+             monthlyRsiStrength = 'WEAK'
+           }
         } else {
-          monthlyRsiStatus = 'BEARISH'
-          monthlyRsiStrength = monthlyRSI < 40 ? 'STRONG' : 'MODERATE'
+          // Fallback to simple logic if thresholds are not properly configured
+          if (monthlyRSI > 70) {
+            monthlyRsiStatus = 'OVERBOUGHT'
+            monthlyRsiStrength = monthlyRSI > 80 ? 'STRONG' : 'MODERATE'
+          } else if (monthlyRSI < 30) {
+            monthlyRsiStatus = 'OVERSOLD'
+            monthlyRsiStrength = monthlyRSI < 20 ? 'STRONG' : 'MODERATE'
+                     } else {
+             monthlyRsiStatus = 'NEUTRAL'
+             monthlyRsiStrength = 'WEAK'
+           }
         }
         
         monthlyTechnicalConditions.push({
@@ -652,8 +725,8 @@ export default function TradingChecklist({ marketData }: TradingChecklistProps) 
         })
       }
 
-      // Add Monthly Bollinger Bands if historical data is available
-      if (spxData.monthlyHistoricalPrices && spxData.monthlyHistoricalPrices.length >= 20) {
+                    // Add Monthly Bollinger Bands if historical data is available
+       if (spxData.monthlyHistoricalPrices && spxData.monthlyHistoricalPrices.length >= 20) {
         const bb20 = TechnicalAnalysis.calculateBollingerBands(spxData.monthlyHistoricalPrices, 20)
         const bb20Position = monthlyPrice > bb20.upper ? 'Above Upper Band' :
                              monthlyPrice < bb20.lower ? 'Below Lower Band' : 'Between Bands'
@@ -663,10 +736,10 @@ export default function TradingChecklist({ marketData }: TradingChecklistProps) 
         
         if (monthlyPrice > bb20.upper) {
           bb20Status = 'OVERBOUGHT'
-          bb20Strength = (monthlyPrice - bb20.upper) / bb20.upper > 0.01 ? 'STRONG' : 'MODERATE'
+          bb20Strength = (monthlyPrice - bb20.upper) / bb20.upper > getBollingerBandsStrengthThreshold() ? 'STRONG' : 'MODERATE'
         } else if (monthlyPrice < bb20.lower) {
           bb20Status = 'OVERSOLD'
-          bb20Strength = (bb20.lower - monthlyPrice) / bb20.lower > 0.01 ? 'STRONG' : 'MODERATE'
+          bb20Strength = (bb20.lower - monthlyPrice) / bb20.lower > getBollingerBandsStrengthThreshold() ? 'STRONG' : 'MODERATE'
         } else {
           bb20Status = 'NEUTRAL'
           bb20Strength = 'WEAK'
@@ -681,7 +754,7 @@ export default function TradingChecklist({ marketData }: TradingChecklistProps) 
         })
       }
 
-      if (spxData.monthlyHistoricalPrices && spxData.monthlyHistoricalPrices.length >= 50) {
+                    if (spxData.monthlyHistoricalPrices && spxData.monthlyHistoricalPrices.length >= 50) {
         const bb50 = TechnicalAnalysis.calculateBollingerBands(spxData.monthlyHistoricalPrices, 50)
         const bb50Position = monthlyPrice > bb50.upper ? 'Above Upper Band' :
                              monthlyPrice < bb50.lower ? 'Below Lower Band' : 'Between Bands'
@@ -691,10 +764,10 @@ export default function TradingChecklist({ marketData }: TradingChecklistProps) 
         
         if (monthlyPrice > bb50.upper) {
           bb50Status = 'OVERBOUGHT'
-          bb50Strength = (monthlyPrice - bb50.upper) / bb50.upper > 0.01 ? 'STRONG' : 'MODERATE'
+          bb50Strength = (monthlyPrice - bb50.upper) / bb50.upper > getBollingerBandsStrengthThreshold() ? 'STRONG' : 'MODERATE'
         } else if (monthlyPrice < bb50.lower) {
           bb50Status = 'OVERSOLD'
-          bb50Strength = (bb50.lower - monthlyPrice) / bb50.lower > 0.01 ? 'STRONG' : 'MODERATE'
+          bb50Strength = (bb50.lower - monthlyPrice) / bb50.lower > getBollingerBandsStrengthThreshold() ? 'STRONG' : 'MODERATE'
         } else {
           bb50Status = 'NEUTRAL'
           bb50Strength = 'WEAK'
@@ -709,7 +782,7 @@ export default function TradingChecklist({ marketData }: TradingChecklistProps) 
         })
       }
 
-      if (spxData.monthlyHistoricalPrices && spxData.monthlyHistoricalPrices.length >= 89) {
+                    if (spxData.monthlyHistoricalPrices && spxData.monthlyHistoricalPrices.length >= 89) {
         const bb89 = TechnicalAnalysis.calculateBollingerBands(spxData.monthlyHistoricalPrices, 89)
         const bb89Position = monthlyPrice > bb89.upper ? 'Above Upper Band' :
                              monthlyPrice < bb89.lower ? 'Below Lower Band' : 'Between Bands'
@@ -719,10 +792,10 @@ export default function TradingChecklist({ marketData }: TradingChecklistProps) 
         
         if (monthlyPrice > bb89.upper) {
           bb89Status = 'OVERBOUGHT'
-          bb89Strength = (monthlyPrice - bb89.upper) / bb89.upper > 0.01 ? 'STRONG' : 'MODERATE'
+          bb89Strength = (monthlyPrice - bb89.upper) / bb89.upper > getBollingerBandsStrengthThreshold() ? 'STRONG' : 'MODERATE'
         } else if (monthlyPrice < bb89.lower) {
           bb89Status = 'OVERSOLD'
-          bb89Strength = (bb89.lower - monthlyPrice) / bb89.lower > 0.01 ? 'STRONG' : 'MODERATE'
+          bb89Strength = (bb89.lower - monthlyPrice) / bb89.lower > getBollingerBandsStrengthThreshold() ? 'STRONG' : 'MODERATE'
         } else {
           bb89Status = 'NEUTRAL'
           bb89Strength = 'WEAK'
@@ -784,27 +857,171 @@ export default function TradingChecklist({ marketData }: TradingChecklistProps) 
     analysis.groups.flatMap(group => group.conditions)
   )
   
-  // Group conditions by timeframe
+  // Group conditions by timeframe - Completely rewritten logic
   const timeframeGroups = {
-    'Monthly': analyses.find(a => a.title === 'Monthly Analysis')?.groups.flatMap(g => g.conditions) || [],
-    'Weekly': analyses.find(a => a.title === 'Weekly Analysis')?.groups.flatMap(g => g.conditions) || [],
-    'Daily': analyses.find(a => a.title === 'Daily Analysis')?.groups.flatMap(g => g.conditions) || [],
-    '2-Hour': analyses.find(a => a.title === '2-Hour Analysis')?.groups.flatMap(g => g.conditions) || []
+    'Monthly': [] as ChecklistItem[],
+    'Weekly': [] as ChecklistItem[],
+    'Daily': [] as ChecklistItem[],
+    '2-Hour': [] as ChecklistItem[]
   }
   
-  // Calculate overall totals
-  const bullishConditions = allConditions.filter(c => c.status === 'BULLISH').length
-  const bearishConditions = allConditions.filter(c => c.status === 'BEARISH').length
-  const neutralConditions = allConditions.filter(c => c.status === 'NEUTRAL').length
-  const overboughtConditions = allConditions.filter(c => c.status === 'OVERBOUGHT').length
-  const oversoldConditions = allConditions.filter(c => c.status === 'OVERSOLD').length
-  const totalConditions = allConditions.length
+  // Extract conditions from each analysis
+  analyses.forEach(analysis => {
+    if (analysis.groups) {
+      const allConditions = analysis.groups.reduce((acc, group) => {
+        if (group.conditions && group.conditions.length > 0) {
+          acc.push(...group.conditions)
+        }
+        return acc
+      }, [] as ChecklistItem[])
+      
+      // Map to correct timeframe
+      if (analysis.title === 'Monthly Analysis') {
+        timeframeGroups['Monthly'] = allConditions
+      } else if (analysis.title === 'Weekly Analysis') {
+        timeframeGroups['Weekly'] = allConditions
+      } else if (analysis.title === 'Daily Analysis') {
+        timeframeGroups['Daily'] = allConditions
+      } else if (analysis.title === '2-Hour Analysis') {
+        timeframeGroups['2-Hour'] = allConditions
+      }
+    }
+  })
   
-  // Calculate met conditions (BULLISH and NEUTRAL are considered "met")
-  const metConditions = bullishConditions + neutralConditions
+  // Debug logging
+  console.log('Timeframe groups after extraction:')
+  Object.entries(timeframeGroups).forEach(([timeframe, conditions]) => {
+    console.log(`${timeframe}: ${conditions.length} conditions - ${conditions.map(c => c.id).join(', ')}`)
+  })
   
-  // Calculate timeframe-specific stats
+  
+  
+         // Calculate overall totals by category
+    const technicalConditions = allConditions.filter(c => 
+      c.id.includes('sma') || c.id.includes('rsi') || c.id.includes('bb') || c.id.includes('macd')
+    )
+    
+    const priceActionConditions = allConditions.filter(c => 
+      c.id.includes('price') || c.id.includes('gap') || c.id.includes('yesterday')
+    )
+    
+    // Technical subcategories
+    const taDirectionalConditions = technicalConditions.filter(c => 
+      c.id.includes('sma') || c.id.includes('macd') || c.id.includes('adx')
+    )
+    
+    const taMomentumConditions = technicalConditions.filter(c => 
+      c.id.includes('rsi') || c.id.includes('stoch') || c.id.includes('williams')
+    )
+    
+    const taVolatilityConditions = technicalConditions.filter(c => 
+      c.id.includes('bb') || c.id.includes('atr') || c.id.includes('keltner')
+    )
+    
+    // Price Action is always directional
+    const priceActionDirectionalConditions = priceActionConditions
+    
+    // Counts for each category
+    const taDirectionalBullish = taDirectionalConditions.filter(c => c.status === 'BULLISH').length
+    const taDirectionalBearish = taDirectionalConditions.filter(c => c.status === 'BEARISH').length
+    const taDirectionalNeutral = taDirectionalConditions.filter(c => c.status === 'NEUTRAL').length
+    
+    const taMomentumOverbought = taMomentumConditions.filter(c => c.status === 'OVERBOUGHT').length
+    const taMomentumOversold = taMomentumConditions.filter(c => c.status === 'OVERSOLD').length
+    const taMomentumNeutral = taMomentumConditions.filter(c => c.status === 'NEUTRAL').length
+    
+    const taVolatilityOverbought = taVolatilityConditions.filter(c => c.status === 'OVERBOUGHT').length
+    const taVolatilityOversold = taVolatilityConditions.filter(c => c.status === 'OVERSOLD').length
+    const taVolatilityNeutral = taVolatilityConditions.filter(c => c.status === 'NEUTRAL').length
+    
+    const priceActionBullish = priceActionDirectionalConditions.filter(c => c.status === 'BULLISH').length
+    const priceActionBearish = priceActionDirectionalConditions.filter(c => c.status === 'BEARISH').length
+    const priceActionNeutral = priceActionDirectionalConditions.filter(c => c.status === 'NEUTRAL').length
+    
+    // Legacy totals for backward compatibility
+    const bullishConditions = taDirectionalBullish + priceActionBullish
+    const bearishConditions = taDirectionalBearish + priceActionBearish
+    const neutralConditions = taDirectionalNeutral + priceActionNeutral
+    const overboughtConditions = taMomentumOverbought + taVolatilityOverbought
+    const oversoldConditions = taMomentumOversold + taVolatilityOversold
+    
+    const totalConditions = allConditions.length
+    const metConditions = bullishConditions + neutralConditions
+  
+  // Calculate timeframe-specific stats with directional vs momentum separation
   const timeframeStats = Object.entries(timeframeGroups).map(([timeframe, conditions]) => {
+    // Helper function to extract indicator name from condition ID
+    const getIndicatorName = (id: string): string => {
+      const parts = id.split('-')
+      if (parts.includes('rsi')) return 'rsi'
+      if (parts.includes('bb')) return 'bollingerBands'
+      if (parts.includes('sma')) return 'sma'
+      if (parts.includes('price')) return 'priceAction'
+      if (parts.includes('gap')) return 'gapAnalysis'
+      return 'unknown'
+    }
+    
+         // Separate conditions by indicator type
+     // Technical Indicators
+     const technicalConditions = conditions.filter(c => 
+       c.id.includes('sma') || c.id.includes('rsi') || c.id.includes('bb') || c.id.includes('macd')
+     )
+     
+     // Price Action Indicators
+     const priceActionConditions = conditions.filter(c => 
+       c.id.includes('price') || c.id.includes('gap') || c.id.includes('yesterday')
+     )
+     
+     // Technical subcategories
+     const directionalConditions = technicalConditions.filter(c => 
+       c.id.includes('sma') || c.id.includes('macd') || c.id.includes('adx')
+     )
+     
+     const momentumConditions = technicalConditions.filter(c => 
+       c.id.includes('rsi') || c.id.includes('stoch') || c.id.includes('williams')
+     )
+     
+     const volatilityConditions = technicalConditions.filter(c => 
+       c.id.includes('bb') || c.id.includes('atr') || c.id.includes('keltner')
+     )
+     
+     // Price Action is always directional
+     const priceActionDirectionalConditions = priceActionConditions
+    
+         // Technical Directional indicators (Bullish/Bearish/Neutral)
+     const technicalDirectionalBullish = directionalConditions.filter(c => c.status === 'BULLISH').length
+     const technicalDirectionalBearish = directionalConditions.filter(c => c.status === 'BEARISH').length
+     const technicalDirectionalNeutral = directionalConditions.filter(c => c.status === 'NEUTRAL').length
+     
+     // Technical Momentum indicators (Overbought/Oversold/Neutral)
+     const momentumOverbought = momentumConditions.filter(c => c.status === 'OVERBOUGHT').length
+     const momentumOversold = momentumConditions.filter(c => c.status === 'OVERSOLD').length
+     const momentumNeutral = momentumConditions.filter(c => c.status === 'NEUTRAL').length
+     
+     // Technical Volatility indicators
+     const volatilityOverbought = volatilityConditions.filter(c => c.status === 'OVERBOUGHT').length
+     const volatilityOversold = volatilityConditions.filter(c => c.status === 'OVERSOLD').length
+     const volatilityNeutral = volatilityConditions.filter(c => c.status === 'NEUTRAL').length
+     
+     // Price Action Directional indicators
+     const priceActionBullish = priceActionDirectionalConditions.filter(c => c.status === 'BULLISH').length
+     const priceActionBearish = priceActionDirectionalConditions.filter(c => c.status === 'BEARISH').length
+     const priceActionNeutral = priceActionDirectionalConditions.filter(c => c.status === 'NEUTRAL').length
+     
+     // Combined totals for backward compatibility
+     const directionalBullish = technicalDirectionalBullish + priceActionBullish
+     const directionalBearish = technicalDirectionalBearish + priceActionBearish
+     const directionalNeutral = technicalDirectionalNeutral + priceActionNeutral
+     
+
+     
+
+     
+
+    
+
+    
+    // Overall counts (for backward compatibility)
     const bullish = conditions.filter(c => c.status === 'BULLISH').length
     const bearish = conditions.filter(c => c.status === 'BEARISH').length
     const neutral = conditions.filter(c => c.status === 'NEUTRAL').length
@@ -813,22 +1030,59 @@ export default function TradingChecklist({ marketData }: TradingChecklistProps) 
     const total = conditions.length
     const met = bullish + neutral
     
+    // Directional bias (based on directional indicators only)
+    let directionalBias = 'NEUTRAL'
+    if (directionalBullish > directionalBearish) directionalBias = 'BULLISH'
+    else if (directionalBearish > directionalBullish) directionalBias = 'BEARISH'
+    
+    // Momentum bias (based on momentum indicators only)
+    let momentumBias = 'NEUTRAL'
+    if (momentumOverbought > momentumOversold) momentumBias = 'OVERBOUGHT'
+    else if (momentumOversold > momentumOverbought) momentumBias = 'OVERSOLD'
+    
+    // Overall bias (for backward compatibility)
     let bias = 'NEUTRAL'
     if (bullish > bearish) bias = 'BULLISH'
     else if (bearish > bullish) bias = 'BEARISH'
     
-    return {
-      timeframe,
-      conditions,
-      bullish,
-      bearish,
-      neutral,
-      overbought,
-      oversold,
-      total,
-      met,
-      bias
-    }
+         return {
+       timeframe,
+       conditions,
+       // Technical Indicators
+       technicalConditions,
+       directionalConditions,
+       technicalDirectionalBullish,
+       technicalDirectionalBearish,
+       technicalDirectionalNeutral,
+       momentumConditions,
+       momentumOverbought,
+       momentumOversold,
+       momentumNeutral,
+       volatilityConditions,
+       volatilityOverbought,
+       volatilityOversold,
+       volatilityNeutral,
+       // Price Action Indicators
+       priceActionConditions,
+       priceActionDirectionalConditions,
+       priceActionBullish,
+       priceActionBearish,
+       priceActionNeutral,
+       // Combined totals (for backward compatibility)
+       directionalBullish,
+       directionalBearish,
+       directionalNeutral,
+       directionalBias,
+       momentumBias,
+       bullish,
+       bearish,
+       neutral,
+       overbought,
+       oversold,
+       total,
+       met,
+       bias
+     }
   })
 
   // Filter conditions based on status
@@ -885,75 +1139,65 @@ export default function TradingChecklist({ marketData }: TradingChecklistProps) 
     )
   }
 
-  return (
-    <div className="space-y-6">
-             {/* Header */}
-       <div className="card">
-         <div className="flex items-center justify-between mb-6">
-           <div className="flex items-center space-x-3">
-             <BarChart3 className="h-8 w-8 text-blue-600" />
-             <div>
-               <h2 className="text-2xl font-bold text-gray-900">SPX Trading Checklist</h2>
-               <p className="text-gray-600">
-                 Multi-timeframe condition evaluation for SPX
-               </p>
-             </div>
-           </div>
-           <div className="flex items-center space-x-2">
-             <div className="flex items-center space-x-1">
-               <CheckCircle className="h-4 w-4 text-green-600" />
-               <span className="text-sm text-green-600">Condition Met</span>
-             </div>
-             <div className="flex items-center space-x-1">
-               <XCircle className="h-4 w-4 text-red-600" />
-               <span className="text-sm text-red-600">Condition Not Met</span>
-             </div>
-           </div>
-         </div>
-       </div>
+         return (
+     <div className="space-y-6">
 
-       {/* SPX Current Price */}
-       <div className="card bg-gradient-to-r from-purple-50 to-blue-50 border-purple-200">
-         <div className="flex items-center justify-between">
-           <div>
-             <h3 className="text-lg font-semibold text-gray-900">SPX Current Price</h3>
-             <div className="text-sm text-gray-500">
-               Last updated: {new Date().toLocaleTimeString()}
+                 {/* Overall Status Card */}
+         <div className="card bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200">
+           <div className="flex items-center justify-between mb-4">
+             <div className="flex items-center space-x-4">
+               <div>
+                 <h3 className="text-xl font-bold text-gray-900">Overall SPX Status</h3>
+                 <p className="text-sm text-gray-600">
+                   {metConditions}/{totalConditions} conditions met across all timeframes
+                 </p>
+                 <p className="text-sm text-gray-500 mt-1">
+                   Last updated: {new Date().toLocaleTimeString()}
+                 </p>
+               </div>
+               <div className="text-right">
+                 <div className="text-2xl font-bold text-blue-800">
+                   {marketData.find(d => d.symbol === 'SPX')?.daily ? 
+                     formatCurrency(marketData.find(d => d.symbol === 'SPX')!.daily!.price) : 
+                     'N/A'
+                   }
+                 </div>
+                 <div className="text-xs text-gray-500">Current Price</div>
+               </div>
              </div>
-           </div>
-           <div className="text-2xl font-bold text-purple-800">
-             {marketData.find(d => d.symbol === 'SPX')?.daily ? 
-               formatCurrency(marketData.find(d => d.symbol === 'SPX')!.daily!.price) : 
-               'N/A'
-             }
-           </div>
-         </div>
-       </div>
-
-       {/* Overall Status Card */}
-       <div className="card bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200">
-         <div className="flex items-center justify-between mb-4">
-           <div>
-             <h3 className="text-xl font-bold text-gray-900">Overall SPX Status</h3>
-             <p className="text-sm text-gray-600">
-               {metConditions}/{totalConditions} conditions met across all timeframes
-             </p>
-           </div>
-           <div className="text-right">
-             <div className={`text-2xl font-bold ${
+                     <div className="text-right">
+                         <div className={`text-2xl font-bold ${
                bullishConditions > bearishConditions ? 'text-green-600' :
                bearishConditions > bullishConditions ? 'text-red-600' : 'text-yellow-600'
              }`}>
                {bullishConditions > bearishConditions ? 'BULLISH BIAS' :
                 bearishConditions > bullishConditions ? 'BEARISH BIAS' : 'NEUTRAL BIAS'}
              </div>
-             <div className="text-sm text-gray-500 mt-1">
-               {bullishConditions} Bullish • {bearishConditions} Bearish • {neutralConditions} Neutral
-             </div>
-             <div className="text-xs text-gray-400 mt-1">
-               {overboughtConditions} Overbought • {oversoldConditions} Oversold
-             </div>
-           </div>
+                           <div className="text-sm text-gray-500 mt-1">
+                <div className="font-medium text-gray-700">TA Directional ({taDirectionalConditions.length} total):</div>
+                <div className="text-xs">
+                  {taDirectionalBullish} Bullish • {taDirectionalBearish} Bearish • {taDirectionalNeutral} Neutral
+                </div>
+              </div>
+              <div className="text-sm text-gray-500 mt-2">
+                <div className="font-medium text-gray-700">TA Momentum ({taMomentumConditions.length} total):</div>
+                <div className="text-xs">
+                  {taMomentumOverbought} Overbought • {taMomentumOversold} Oversold • {taMomentumNeutral} Neutral
+                </div>
+              </div>
+              <div className="text-sm text-gray-500 mt-2">
+                <div className="font-medium text-gray-700">TA Volatility ({taVolatilityConditions.length} total):</div>
+                <div className="text-xs">
+                  {taVolatilityOverbought} Overbought • {taVolatilityOversold} Oversold • {taVolatilityNeutral} Neutral
+                </div>
+              </div>
+              <div className="text-sm text-gray-500 mt-2">
+                <div className="font-medium text-gray-700">Price Action ({priceActionDirectionalConditions.length} total):</div>
+                <div className="text-xs">
+                  {priceActionBullish} Bullish • {priceActionBearish} Bearish • {priceActionNeutral} Neutral
+                </div>
+              </div>
+          </div>
          </div>
          
          {/* Progress Bar */}
@@ -967,53 +1211,66 @@ export default function TradingChecklist({ marketData }: TradingChecklistProps) 
            ></div>
          </div>
          
-         {/* Timeframe Breakdown */}
-         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-           {timeframeStats.map((stats) => (
-             <div key={stats.timeframe} className="bg-white rounded-lg p-3 border border-gray-200">
-               <div className="flex items-center justify-between mb-2">
-                 <h4 className="text-sm font-semibold text-gray-900">{stats.timeframe}</h4>
-                 <div className={`px-2 py-1 rounded-full text-xs font-medium ${
-                   stats.bias === 'BULLISH' ? 'bg-green-100 text-green-800' :
-                   stats.bias === 'BEARISH' ? 'bg-red-100 text-red-800' :
-                   'bg-gray-100 text-gray-800'
-                 }`}>
-                   {stats.bias}
+                   {/* Timeframe Breakdown */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {timeframeStats.map((stats) => (
+              <div key={stats.timeframe} className="bg-white rounded-lg p-3 border border-gray-200">
+                <div className="flex items-center justify-between mb-2">
+                  <h4 className="text-sm font-semibold text-gray-900">{stats.timeframe}</h4>
+                  <div className="flex flex-col items-end space-y-1">
+                    <div className={`px-2 py-1 rounded-full text-xs font-medium ${
+                      stats.directionalBias === 'BULLISH' ? 'bg-green-100 text-green-800' :
+                      stats.directionalBias === 'BEARISH' ? 'bg-red-100 text-red-800' :
+                      'bg-gray-100 text-gray-800'
+                    }`}>
+                      {stats.directionalBias}
+                    </div>
+                    <div className={`px-2 py-1 rounded-full text-xs font-medium ${
+                      stats.momentumBias === 'OVERBOUGHT' ? 'bg-orange-100 text-orange-800' :
+                      stats.momentumBias === 'OVERSOLD' ? 'bg-purple-100 text-purple-800' :
+                      'bg-gray-100 text-gray-800'
+                    }`}>
+                      {stats.momentumBias}
+                    </div>
+                  </div>
+                </div>
+                
+                                 {/* Directional Indicators */}
+                 <div className="text-xs text-gray-600 space-y-1 mb-2">
+                   <div className="font-medium text-gray-800">Directional ({stats.directionalBullish + stats.directionalBearish + stats.directionalNeutral} total):</div>
+                   <div className="flex justify-between">
+                     <span>Bullish:</span>
+                     <span className="text-green-600 font-medium">{stats.directionalBullish}</span>
+                   </div>
+                   <div className="flex justify-between">
+                     <span>Bearish:</span>
+                     <span className="text-red-600 font-medium">{stats.directionalBearish}</span>
+                   </div>
+                   <div className="flex justify-between">
+                     <span>Neutral:</span>
+                     <span className="text-blue-600 font-medium">{stats.directionalNeutral}</span>
+                   </div>
                  </div>
-               </div>
-               <div className="text-xs text-gray-600 space-y-1">
-                 <div className="flex justify-between">
-                   <span>Met:</span>
-                   <span className="font-medium">{stats.met}/{stats.total}</span>
-                 </div>
-                 <div className="flex justify-between">
-                   <span>Bullish:</span>
-                   <span className="text-green-600 font-medium">{stats.bullish}</span>
-                 </div>
-                 <div className="flex justify-between">
-                   <span>Bearish:</span>
-                   <span className="text-red-600 font-medium">{stats.bearish}</span>
-                 </div>
-                 <div className="flex justify-between">
-                   <span>Neutral:</span>
-                   <span className="text-blue-600 font-medium">{stats.neutral}</span>
-                 </div>
-                 {stats.overbought > 0 && (
+                 
+                 {/* Momentum Indicators */}
+                 <div className="text-xs text-gray-600 space-y-1">
+                   <div className="font-medium text-gray-800">Momentum ({stats.momentumOverbought + stats.momentumOversold + stats.momentumNeutral} total):</div>
                    <div className="flex justify-between">
                      <span>Overbought:</span>
-                     <span className="text-orange-600 font-medium">{stats.overbought}</span>
+                     <span className="text-orange-600 font-medium">{stats.momentumOverbought}</span>
                    </div>
-                 )}
-                 {stats.oversold > 0 && (
                    <div className="flex justify-between">
                      <span>Oversold:</span>
-                     <span className="text-purple-600 font-medium">{stats.oversold}</span>
+                     <span className="text-purple-600 font-medium">{stats.momentumOversold}</span>
                    </div>
-                 )}
-               </div>
-             </div>
-           ))}
-         </div>
+                   <div className="flex justify-between">
+                     <span>Neutral:</span>
+                     <span className="text-blue-600 font-medium">{stats.momentumNeutral}</span>
+                   </div>
+                 </div>
+              </div>
+            ))}
+          </div>
        </div>
 
       {/* Controls */}
@@ -1109,53 +1366,151 @@ export default function TradingChecklist({ marketData }: TradingChecklistProps) 
                             </p>
                           </div>
                         ) : (
-                          <div className="space-y-2">
-                            {sortedConditions.map((condition) => (
-                                                             <div 
-                                 key={condition.id} 
-                                 className={`flex items-start space-x-3 p-4 rounded-lg border transition-all duration-200 ${
-                                   condition.status === 'BULLISH' || condition.status === 'NEUTRAL'
-                                     ? 'bg-green-50 border-green-200 hover:bg-green-100' 
-                                     : 'bg-red-50 border-red-200 hover:bg-red-100'
-                                 }`}
-                               >
-                                 {condition.status === 'BULLISH' || condition.status === 'NEUTRAL' ? (
-                                   <CheckCircle className="h-5 w-5 text-green-600 flex-shrink-0 mt-0.5" />
-                                 ) : (
-                                   <XCircle className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
-                                 )}
-                                 <div className="flex-1">
-                                   <div className={`text-sm font-medium ${
-                                     condition.status === 'BULLISH' || condition.status === 'NEUTRAL' ? 'text-green-800' : 'text-red-800'
-                                   }`}>
-                                     {condition.label}
-                                   </div>
-                                   <div className="text-xs text-gray-600 mt-1 font-mono">
-                                     {condition.description}
-                                   </div>
-                                 </div>
-                                                                   <div className="flex flex-col items-end space-y-1">
-                                    <div className={`px-2 py-1 rounded-full text-xs font-medium ${
-                                      condition.status === 'BULLISH' ? 'bg-green-100 text-green-800' :
-                                      condition.status === 'NEUTRAL' ? 'bg-blue-100 text-blue-800' :
-                                      condition.status === 'BEARISH' ? 'bg-red-100 text-red-800' :
-                                      condition.status === 'OVERBOUGHT' ? 'bg-orange-100 text-orange-800' :
-                                      'bg-purple-100 text-purple-800'
-                                    }`}>
-                                      {condition.status}
+                          <div className="space-y-4">
+                                                         {/* Directional Indicators */}
+                             {(() => {
+                               const directionalConditions = sortedConditions.filter(c => 
+                                 (c.status === 'BULLISH' || c.status === 'BEARISH' || c.status === 'NEUTRAL') &&
+                                 !c.id.includes('rsi')
+                               )
+                               if (directionalConditions.length > 0) {
+                                 return (
+                                   <div className="border-l-4 border-green-500 pl-4 bg-green-50 rounded-r-lg p-3 mb-4">
+                                     <div className="flex items-center mb-3">
+                                       <div className="flex-1">
+                                         <h6 className="text-sm font-semibold text-gray-800">📈 Directional Indicators ({directionalConditions.length} total)</h6>
+                                         <p className="text-xs text-gray-500">Trend and price direction analysis</p>
+                                       </div>
+                                       <div className="text-xs text-gray-500 bg-green-100 px-2 py-1 rounded">
+                                         {directionalConditions.length} condition{directionalConditions.length !== 1 ? 's' : ''}
+                                       </div>
+                                     </div>
+                                    <div className="space-y-2">
+                                      {directionalConditions.map((condition) => (
+                                        <div 
+                                          key={condition.id} 
+                                          className={`flex items-start space-x-3 p-3 rounded-lg border transition-all duration-200 ${
+                                            condition.status === 'BULLISH' || condition.status === 'NEUTRAL'
+                                              ? 'bg-green-50 border-green-200 hover:bg-green-100' 
+                                              : 'bg-red-50 border-red-200 hover:bg-red-100'
+                                          }`}
+                                        >
+                                          {condition.status === 'BULLISH' || condition.status === 'NEUTRAL' ? (
+                                            <CheckCircle className="h-4 w-4 text-green-600 flex-shrink-0 mt-0.5" />
+                                          ) : (
+                                            <XCircle className="h-4 w-4 text-red-600 flex-shrink-0 mt-0.5" />
+                                          )}
+                                          <div className="flex-1">
+                                            <div className={`text-sm font-medium ${
+                                              condition.status === 'BULLISH' || condition.status === 'NEUTRAL' ? 'text-green-800' : 'text-red-800'
+                                            }`}>
+                                              {condition.label}
+                                            </div>
+                                            <div className="text-xs text-gray-600 mt-1 font-mono">
+                                              {condition.description}
+                                            </div>
+                                          </div>
+                                          <div className="flex flex-col items-end space-y-1">
+                                            <div className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                              condition.status === 'BULLISH' ? 'bg-green-100 text-green-800' :
+                                              condition.status === 'NEUTRAL' ? 'bg-blue-100 text-blue-800' :
+                                              'bg-red-100 text-red-800'
+                                            }`}>
+                                              {condition.status}
+                                            </div>
+                                            {condition.strength && (
+                                              <div className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                                condition.strength === 'STRONG' ? 'bg-yellow-100 text-yellow-800' :
+                                                condition.strength === 'MODERATE' ? 'bg-gray-100 text-gray-800' :
+                                                'bg-gray-50 text-gray-600'
+                                              }`}>
+                                                {condition.strength}
+                                              </div>
+                                            )}
+                                          </div>
+                                        </div>
+                                      ))}
                                     </div>
-                                    {condition.strength && (
-                                      <div className={`px-2 py-1 rounded-full text-xs font-medium ${
-                                        condition.strength === 'STRONG' ? 'bg-yellow-100 text-yellow-800' :
-                                        condition.strength === 'MODERATE' ? 'bg-gray-100 text-gray-800' :
-                                        'bg-gray-50 text-gray-600'
-                                      }`}>
-                                        {condition.strength}
-                                      </div>
-                                    )}
                                   </div>
-                               </div>
-                            ))}
+                                )
+                              }
+                              return null
+                            })()}
+
+                                                         {/* Momentum Indicators */}
+                             {(() => {
+                               const momentumConditions = sortedConditions.filter(c => 
+                                 c.status === 'OVERBOUGHT' || c.status === 'OVERSOLD' || 
+                                 (c.status === 'NEUTRAL' && c.id.includes('rsi'))
+                               )
+                               if (momentumConditions.length > 0) {
+                                 return (
+                                   <div className="border-l-4 border-orange-500 pl-4 bg-orange-50 rounded-r-lg p-3">
+                                     <div className="flex items-center mb-3">
+                                       <div className="flex-1">
+                                         <h6 className="text-sm font-semibold text-gray-800">⚡ Momentum Indicators ({momentumConditions.length} total)</h6>
+                                         <p className="text-xs text-gray-500">Overbought/oversold conditions</p>
+                                       </div>
+                                       <div className="text-xs text-gray-500 bg-orange-100 px-2 py-1 rounded">
+                                         {momentumConditions.length} condition{momentumConditions.length !== 1 ? 's' : ''}
+                                       </div>
+                                     </div>
+                                    <div className="space-y-2">
+                                      {momentumConditions.map((condition) => (
+                                                                                 <div 
+                                           key={condition.id} 
+                                           className={`flex items-start space-x-3 p-3 rounded-lg border transition-all duration-200 ${
+                                             condition.status === 'OVERSOLD'
+                                               ? 'bg-purple-50 border-purple-200 hover:bg-purple-100' 
+                                               : condition.status === 'NEUTRAL'
+                                               ? 'bg-blue-50 border-blue-200 hover:bg-blue-100'
+                                               : 'bg-orange-50 border-orange-200 hover:bg-orange-100'
+                                           }`}
+                                         >
+                                           {condition.status === 'OVERSOLD' ? (
+                                             <CheckCircle className="h-4 w-4 text-purple-600 flex-shrink-0 mt-0.5" />
+                                           ) : condition.status === 'NEUTRAL' ? (
+                                             <CheckCircle className="h-4 w-4 text-blue-600 flex-shrink-0 mt-0.5" />
+                                           ) : (
+                                             <XCircle className="h-4 w-4 text-orange-600 flex-shrink-0 mt-0.5" />
+                                           )}
+                                                                                     <div className="flex-1">
+                                             <div className={`text-sm font-medium ${
+                                               condition.status === 'OVERSOLD' ? 'text-purple-800' : 
+                                               condition.status === 'NEUTRAL' ? 'text-blue-800' : 'text-orange-800'
+                                             }`}>
+                                              {condition.label}
+                                            </div>
+                                            <div className="text-xs text-gray-600 mt-1 font-mono">
+                                              {condition.description}
+                                            </div>
+                                          </div>
+                                                                                     <div className="flex flex-col items-end space-y-1">
+                                             <div className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                               condition.status === 'OVERBOUGHT' ? 'bg-orange-100 text-orange-800' :
+                                               condition.status === 'NEUTRAL' ? 'bg-blue-100 text-blue-800' :
+                                               'bg-purple-100 text-purple-800'
+                                             }`}>
+                                              {condition.status}
+                                            </div>
+                                            {condition.strength && (
+                                              <div className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                                condition.strength === 'STRONG' ? 'bg-yellow-100 text-yellow-800' :
+                                                condition.strength === 'MODERATE' ? 'bg-gray-100 text-gray-800' :
+                                                'bg-gray-50 text-gray-600'
+                                              }`}>
+                                                {condition.strength}
+                                              </div>
+                                            )}
+                                          </div>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )
+                              }
+                              return null
+                            })()}
                           </div>
                         )}
                       </div>

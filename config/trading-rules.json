@@ -1,0 +1,291 @@
+{
+  "rules": {
+    "strongBuy": {
+      "conditions": {
+        "all": [
+          {
+            "fact": "trendBullishCount",
+            "operator": "greaterThan",
+            "value": 2
+          },
+          {
+            "fact": "momentumOversoldCount",
+            "operator": "greaterThan",
+            "value": 0
+          },
+          {
+            "fact": "volumeConfirmation",
+            "operator": "equal",
+            "value": true
+          }
+        ]
+      },
+      "event": {
+        "type": "strong-buy",
+        "params": {
+          "message": "Strong buy signal: Trend bullish, momentum oversold, volume confirms",
+          "confidence": 0.85,
+          "riskLevel": "low"
+        }
+      },
+      "priority": 100
+    },
+    "buy": {
+      "conditions": {
+        "all": [
+          {
+            "fact": "trendBullishCount",
+            "operator": "greaterThan",
+            "value": 1
+          },
+          {
+            "fact": "momentumNeutralCount",
+            "operator": "greaterThan",
+            "value": 0
+          }
+        ]
+      },
+      "event": {
+        "type": "buy",
+        "params": {
+          "message": "Buy signal: Trend bullish, momentum neutral",
+          "confidence": 0.7,
+          "riskLevel": "medium"
+        }
+      },
+      "priority": 80
+    },
+    "weakBuy": {
+      "conditions": {
+        "all": [
+          {
+            "fact": "trendBullishCount",
+            "operator": "greaterThan",
+            "value": 0
+          },
+          {
+            "fact": "momentumOversoldCount",
+            "operator": "greaterThan",
+            "value": 0
+          }
+        ]
+      },
+      "event": {
+        "type": "weak-buy",
+        "params": {
+          "message": "Weak buy signal: Some bullish trend, momentum oversold",
+          "confidence": 0.6,
+          "riskLevel": "high"
+        }
+      },
+      "priority": 60
+    },
+    "strongSell": {
+      "conditions": {
+        "all": [
+          {
+            "fact": "trendBearishCount",
+            "operator": "greaterThan",
+            "value": 2
+          },
+          {
+            "fact": "momentumOverboughtCount",
+            "operator": "greaterThan",
+            "value": 0
+          },
+          {
+            "fact": "volumeConfirmation",
+            "operator": "equal",
+            "value": true
+          }
+        ]
+      },
+      "event": {
+        "type": "strong-sell",
+        "params": {
+          "message": "Strong sell signal: Trend bearish, momentum overbought, volume confirms",
+          "confidence": 0.85,
+          "riskLevel": "low"
+        }
+      },
+      "priority": 100
+    },
+    "sell": {
+      "conditions": {
+        "all": [
+          {
+            "fact": "trendBearishCount",
+            "operator": "greaterThan",
+            "value": 1
+          },
+          {
+            "fact": "momentumNeutralCount",
+            "operator": "greaterThan",
+            "value": 0
+          }
+        ]
+      },
+      "event": {
+        "type": "sell",
+        "params": {
+          "message": "Sell signal: Trend bearish, momentum neutral",
+          "confidence": 0.7,
+          "riskLevel": "medium"
+        }
+      },
+      "priority": 80
+    },
+    "weakSell": {
+      "conditions": {
+        "all": [
+          {
+            "fact": "trendBearishCount",
+            "operator": "greaterThan",
+            "value": 0
+          },
+          {
+            "fact": "momentumOverboughtCount",
+            "operator": "greaterThan",
+            "value": 0
+          }
+        ]
+      },
+      "event": {
+        "type": "weak-sell",
+        "params": {
+          "message": "Weak sell signal: Some bearish trend, momentum overbought",
+          "confidence": 0.6,
+          "riskLevel": "high"
+        }
+      },
+      "priority": 60
+    },
+    "hold": {
+      "conditions": {
+        "any": [
+          {
+            "all": [
+              {
+                "fact": "trendNeutralCount",
+                "operator": "greaterThan",
+                "value": 2
+              }
+            ]
+          },
+          {
+            "all": [
+              {
+                "fact": "conflictingSignals",
+                "operator": "equal",
+                "value": true
+              }
+            ]
+          },
+          {
+            "all": [
+              {
+                "fact": "lowVolume",
+                "operator": "equal",
+                "value": true
+              }
+            ]
+          }
+        ]
+      },
+      "event": {
+        "type": "hold",
+        "params": {
+          "message": "Hold signal: Mixed or neutral signals, low volume, or conflicting indicators",
+          "confidence": 0.5,
+          "riskLevel": "medium"
+        }
+      },
+      "priority": 40
+    }
+  },
+  "factDefinitions": {
+    "trendBullishCount": {
+      "type": "number",
+      "description": "Number of trend indicators showing bullish signals"
+    },
+    "trendBearishCount": {
+      "type": "number", 
+      "description": "Number of trend indicators showing bearish signals"
+    },
+    "trendNeutralCount": {
+      "type": "number",
+      "description": "Number of trend indicators showing neutral signals"
+    },
+    "momentumOverboughtCount": {
+      "type": "number",
+      "description": "Number of momentum indicators showing overbought conditions"
+    },
+    "momentumOversoldCount": {
+      "type": "number",
+      "description": "Number of momentum indicators showing oversold conditions"
+    },
+    "momentumNeutralCount": {
+      "type": "number",
+      "description": "Number of momentum indicators showing neutral conditions"
+    },
+    "volumeConfirmation": {
+      "type": "boolean",
+      "description": "Whether volume confirms the price action"
+    },
+    "lowVolume": {
+      "type": "boolean",
+      "description": "Whether volume is below average"
+    },
+    "conflictingSignals": {
+      "type": "boolean",
+      "description": "Whether there are conflicting signals across categories"
+    },
+    "volatilityHigh": {
+      "type": "boolean",
+      "description": "Whether volatility is high"
+    },
+    "volatilityLow": {
+      "type": "boolean",
+      "description": "Whether volatility is low"
+    },
+    "supportResistanceNear": {
+      "type": "boolean",
+      "description": "Whether price is near support or resistance levels"
+    }
+  },
+  "signalMapping": {
+    "strong-buy": "STRONG_BUY",
+    "buy": "BUY", 
+    "weak-buy": "WEAK_BUY",
+    "strong-sell": "STRONG_SELL",
+    "sell": "SELL",
+    "weak-sell": "WEAK_SELL",
+    "hold": "HOLD"
+  },
+  "confidenceLevels": {
+    "STRONG_BUY": 0.85,
+    "BUY": 0.7,
+    "WEAK_BUY": 0.6,
+    "STRONG_SELL": 0.85,
+    "SELL": 0.7,
+    "WEAK_SELL": 0.6,
+    "HOLD": 0.5
+  },
+  "riskLevels": {
+    "low": {
+      "maxPositionSize": 0.1,
+      "stopLoss": 0.02,
+      "takeProfit": 0.04
+    },
+    "medium": {
+      "maxPositionSize": 0.05,
+      "stopLoss": 0.015,
+      "takeProfit": 0.03
+    },
+    "high": {
+      "maxPositionSize": 0.025,
+      "stopLoss": 0.01,
+      "takeProfit": 0.02
+    }
+  }
+}
