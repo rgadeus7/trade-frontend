@@ -50,6 +50,8 @@ export interface ConfigurableThresholds {
   squeeze?: string
   volumeThreshold?: number
   lookbackPeriod?: number
+  frame?: number
+  multiplier?: number
 }
 
 export interface Indicator {
@@ -208,6 +210,30 @@ export const getVWAPLookbackPeriod = (): number => {
 
 export const getVolumeProfileLookbackPeriod = (): number => {
   return tradingConfig.indicators.volumeProfile.configurable.lookbackPeriod || 50
+}
+
+export const getMMLOvershootLookbackPeriod = (): number => {
+  return tradingConfig.indicators.mmlOvershoot.configurable.lookbackPeriod || 24
+}
+
+export const getMMLOversoldLookbackPeriod = (): number => {
+  return tradingConfig.indicators.mmlOversold.configurable.lookbackPeriod || 24
+}
+
+export const getMMLOvershootFrame = (): number => {
+  return tradingConfig.indicators.mmlOvershoot.configurable.frame || 16
+}
+
+export const getMMLOversoldFrame = (): number => {
+  return tradingConfig.indicators.mmlOversold.configurable.frame || 16
+}
+
+export const getMMLOvershootMultiplier = (): number => {
+  return tradingConfig.indicators.mmlOvershoot.configurable.multiplier || 1.5
+}
+
+export const getMMLOversoldMultiplier = (): number => {
+  return tradingConfig.indicators.mmlOversold.configurable.multiplier || 1.5
 }
 
 // Signal logic helpers

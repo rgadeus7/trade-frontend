@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState } from 'react'
-import { CheckCircle, XCircle, ChevronDown, ChevronRight } from 'lucide-react'
+import { CheckCircle, XCircle, ChevronDown, ChevronRight, X } from 'lucide-react'
 import { TechnicalAnalysis } from '../lib/technicalAnalysis'
 import { 
   getSMAStrengthThreshold, 
@@ -11,7 +11,13 @@ import {
   getIndicatorCategorization,
   getSubcategoriesByCategory,
   getVWAPLookbackPeriod,
-  getVolumeProfileLookbackPeriod
+  getVolumeProfileLookbackPeriod,
+  getMMLOvershootLookbackPeriod,
+  getMMLOversoldLookbackPeriod,
+  getMMLOvershootFrame,
+  getMMLOversoldFrame,
+  getMMLOvershootMultiplier,
+  getMMLOversoldMultiplier
 } from '../config/trading-config'
 import { MarketData } from '../types/market'
 import { timeframeDataService, type TimeframeData as ServiceTimeframeData } from '../lib/timeframeDataService'
@@ -40,6 +46,123 @@ interface TimeframeData {
   historicalVolume?: number[]
   previousClose?: number
   previousHigh?: number
+}
+
+// ===== MODAL COMPONENT =====
+interface SummaryModalProps {
+  isOpen: boolean
+  onClose: () => void
+  allConditions: ChecklistItem[]
+  selectedStatus?: 'BULLISH' | 'BEARISH' | 'OVERBOUGHT' | 'OVERSOLD' | 'NO_BIAS'
+}
+
+function SummaryModal({ isOpen, onClose, allConditions, selectedStatus }: SummaryModalProps) {
+  if (!isOpen) return null
+
+  // Filter conditions based on selected status
+  const filteredConditions = selectedStatus 
+    ? allConditions.filter(c => c.status === selectedStatus)
+    : allConditions
+
+  // Group by timeframe
+  const groupByTimeframe = (conditions: ChecklistItem[]) => {
+    const grouped: { [key: string]: ChecklistItem[] } = {}
+    conditions.forEach(condition => {
+      const timeframe = condition.id.split('-')[0]
+      const timeframeName = timeframe === '2' ? '2-Hour' : timeframe
+      if (!grouped[timeframeName]) {
+        grouped[timeframeName] = []
+      }
+      grouped[timeframeName].push(condition)
+    })
+    return grouped
+  }
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'BULLISH': return 'text-green-600'
+      case 'BEARISH': return 'text-red-600'
+      case 'OVERBOUGHT': return 'text-orange-600'
+      case 'OVERSOLD': return 'text-purple-600'
+      case 'NO_BIAS': return 'text-blue-600'
+      default: return 'text-gray-600'
+    }
+  }
+
+  const getStatusTitle = (status: string) => {
+    switch (status) {
+      case 'BULLISH': return 'Bullish Indicators'
+      case 'BEARISH': return 'Bearish Indicators'
+      case 'OVERBOUGHT': return 'Overbought Indicators'
+      case 'OVERSOLD': return 'Oversold Indicators'
+      case 'NO_BIAS': return 'No Bias Indicators'
+      default: return 'All Indicators'
+    }
+  }
+
+  const groupedByTimeframe = groupByTimeframe(filteredConditions)
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-hidden">
+        <div className="flex items-center justify-between p-6 border-b border-gray-200">
+          <h2 className="text-xl font-bold text-gray-900">
+            {selectedStatus ? getStatusTitle(selectedStatus) : 'SPX Analysis Breakdown'}
+          </h2>
+          <button
+            onClick={onClose}
+            className="text-gray-400 hover:text-gray-600 transition-colors"
+          >
+            <X className="h-6 w-6" />
+          </button>
+        </div>
+        
+                 <div className="p-6 overflow-y-auto max-h-[calc(90vh-120px)]">
+           {Object.entries(groupedByTimeframe).map(([timeframe, timeframeConditions]) => {
+             // Extract SPX price from the first condition's description
+             const firstCondition = timeframeConditions[0]
+             const spxPriceMatch = firstCondition?.description.match(/SPX: \$([\d,]+\.\d+)/)
+             const spxPrice = spxPriceMatch ? spxPriceMatch[1] : 'N/A'
+             
+             return (
+               <div key={timeframe} className="mb-6 border border-gray-200 rounded-lg p-4">
+                 <div className="flex items-center justify-between mb-3">
+                   <h3 className="text-lg font-semibold text-gray-900">{timeframe} ({timeframeConditions.length})</h3>
+                   <div className="text-sm font-mono text-gray-600 bg-gray-100 px-2 py-1 rounded">
+                     SPX: ${spxPrice}
+                   </div>
+                 </div>
+                 <div className="space-y-2">
+                   {timeframeConditions.map(condition => {
+                     // Remove SPX price from description since it's shown at timeframe level
+                     const cleanDescription = condition.description.replace(/SPX: \$[\d,]+\.\d+ \| /, '')
+                     
+                     return (
+                       <div key={condition.id} className="space-y-1">
+                         <div className="flex items-center justify-between text-sm">
+                           <span className="text-gray-700 font-medium">{condition.label}</span>
+                           <span className={`px-2 py-1 rounded text-xs font-medium ${
+                             condition.strength === 'STRONG' ? 'bg-yellow-100 text-yellow-800' :
+                             condition.strength === 'MODERATE' ? 'bg-gray-100 text-gray-800' :
+                             'bg-gray-50 text-gray-600'
+                           }`}>
+                             {condition.strength}
+                           </span>
+                         </div>
+                         <div className="text-xs text-gray-500 font-mono bg-gray-50 px-2 py-1 rounded">
+                           {cleanDescription}
+                         </div>
+                       </div>
+                     )
+                   })}
+                 </div>
+               </div>
+             )
+           })}
+         </div>
+      </div>
+    </div>
+  )
 }
 
 // ===== INDICATOR DEFINITIONS =====
@@ -329,17 +452,113 @@ const INDICATORS = {
         strength = 'WEAK'
       }
       
-      return {
-        id: `${timeframe.name}-volume-profile`,
-        label: `${timeframe.name} Volume Profile`,
-        status,
-        strength,
-        description: `SPX: $${timeframe.price.toFixed(2)} | POC: $${volumeProfile.poc.toFixed(2)} | ${inValueArea ? 'In Value Area' : 'Outside Value Area'}`,
-        category: INDICATORS.volumeProfile.getCategory().category,
-        subcategory: INDICATORS.volumeProfile.getCategory().subcategory
-      }
-    }
-  },
+             return {
+         id: `${timeframe.name}-volume-profile`,
+         label: `${timeframe.name} Volume Profile`,
+         status,
+         strength,
+         description: `SPX: $${timeframe.price.toFixed(2)} | POC: $${volumeProfile.poc.toFixed(2)} | ${inValueArea ? 'In Value Area' : 'Outside Value Area'}`,
+         category: INDICATORS.volumeProfile.getCategory().category,
+         subcategory: INDICATORS.volumeProfile.getCategory().subcategory
+       }
+     }
+   },
+
+   // MML Overshoot indicator
+   mmlOvershoot: {
+     id: 'mml-overshoot',
+     label: 'MML Overshoot',
+     getCategory: () => getIndicatorCategorization('mmlOvershoot') || { category: 'technical', subcategory: 'volatility' },
+     calculate: (timeframe: TimeframeData): ChecklistItem | null => {
+       const lookbackPeriod = getMMLOvershootLookbackPeriod()
+       if (!timeframe.historicalOHLC || timeframe.historicalOHLC.close.length < lookbackPeriod) return null
+       
+       const { high, low } = timeframe.historicalOHLC
+       
+       // Use only the last N periods for MML calculation
+       const recentHigh = high.slice(-lookbackPeriod)
+       const recentLow = low.slice(-lookbackPeriod)
+       
+               const frame = getMMLOvershootFrame()
+        const multiplier = getMMLOvershootMultiplier()
+        const mmlLevels = TechnicalAnalysis.calculateMurreyMathLevels(recentHigh, recentLow, frame, multiplier)
+        const mmlConditions = TechnicalAnalysis.checkMMLOvershootConditions(timeframe.price, mmlLevels)
+       
+               // Always return a result, even if no overshoot conditions are met
+       
+       let status: 'OVERBOUGHT' | 'OVERSOLD' | 'NO_BIAS'
+       let strength: 'STRONG' | 'MODERATE' | 'WEAK'
+       
+       if (mmlConditions.isExtremeOvershoot) {
+         status = 'OVERBOUGHT'
+         strength = 'STRONG'
+       } else if (mmlConditions.isOvershoot) {
+         status = 'OVERBOUGHT'
+         strength = 'MODERATE'
+       } else {
+         status = 'NO_BIAS'
+         strength = 'WEAK'
+       }
+       
+       return {
+         id: `${timeframe.name}-mml-overshoot`,
+         label: `${timeframe.name} MML Overshoot`,
+         status,
+         strength,
+         description: `SPX: $${timeframe.price.toFixed(2)} | +2/8: $${mmlLevels.plus28.toFixed(2)} | +1/8: $${mmlLevels.plus18.toFixed(2)}`,
+         category: INDICATORS.mmlOvershoot.getCategory().category,
+         subcategory: INDICATORS.mmlOvershoot.getCategory().subcategory
+       }
+     }
+   },
+
+   // MML Oversold indicator
+   mmlOversold: {
+     id: 'mml-oversold',
+     label: 'MML Oversold',
+     getCategory: () => getIndicatorCategorization('mmlOversold') || { category: 'technical', subcategory: 'volatility' },
+     calculate: (timeframe: TimeframeData): ChecklistItem | null => {
+       const lookbackPeriod = getMMLOversoldLookbackPeriod()
+       if (!timeframe.historicalOHLC || timeframe.historicalOHLC.close.length < lookbackPeriod) return null
+       
+       const { high, low } = timeframe.historicalOHLC
+       
+       // Use only the last N periods for MML calculation
+       const recentHigh = high.slice(-lookbackPeriod)
+       const recentLow = low.slice(-lookbackPeriod)
+       
+               const frame = getMMLOversoldFrame()
+        const multiplier = getMMLOversoldMultiplier()
+        const mmlLevels = TechnicalAnalysis.calculateMurreyMathLevels(recentHigh, recentLow, frame, multiplier)
+        const mmlConditions = TechnicalAnalysis.checkMMLOversoldConditions(timeframe.price, mmlLevels)
+       
+               // Always return a result, even if no oversold conditions are met
+       
+       let status: 'OVERBOUGHT' | 'OVERSOLD' | 'NO_BIAS'
+       let strength: 'STRONG' | 'MODERATE' | 'WEAK'
+       
+       if (mmlConditions.isExtremeOversold) {
+         status = 'OVERSOLD'
+         strength = 'STRONG'
+       } else if (mmlConditions.isOversold) {
+         status = 'OVERSOLD'
+         strength = 'MODERATE'
+       } else {
+         status = 'NO_BIAS'
+         strength = 'WEAK'
+       }
+       
+       return {
+         id: `${timeframe.name}-mml-oversold`,
+         label: `${timeframe.name} MML Oversold`,
+         status,
+         strength,
+         description: `SPX: $${timeframe.price.toFixed(2)} | -1/8: $${mmlLevels.minus18.toFixed(2)} | -2/8: $${mmlLevels.minus28.toFixed(2)}`,
+         category: INDICATORS.mmlOversold.getCategory().category,
+         subcategory: INDICATORS.mmlOversold.getCategory().subcategory
+       }
+     }
+   },
 
   // Price Action indicators
   priceAction: {
@@ -528,6 +747,8 @@ export default function TradingChecklistV2({ marketData }: TradingChecklistProps
   const [selectedTimeframes, setSelectedTimeframes] = useState<Set<string>>(new Set(['Daily', '2-Hour', 'Weekly', 'Monthly']))
   const [timeframeData, setTimeframeData] = useState<Record<string, ServiceTimeframeData | null> | null>(null)
   const [loading, setLoading] = useState(true)
+  const [showSummaryModal, setShowSummaryModal] = useState(false)
+  const [selectedStatus, setSelectedStatus] = useState<'BULLISH' | 'BEARISH' | 'OVERBOUGHT' | 'OVERSOLD' | 'NO_BIAS' | undefined>(undefined)
 
   // Get SPX data and fetch timeframe-specific data
   const spxData = marketData.find(d => d.symbol === 'SPX')
@@ -701,46 +922,76 @@ export default function TradingChecklistV2({ marketData }: TradingChecklistProps
 
   return (
     <div className="space-y-6">
-      {/* Summary Card */}
-      <div className="card bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200">
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <h3 className="text-xl font-bold text-gray-900">SPX Analysis Summary</h3>
-            <p className="text-sm text-gray-600">
-              {filteredConditions.length} conditions across {selectedTimeframes.size} timeframes
-            </p>
-          </div>
-                     <div className="text-right">
+             {/* Summary Card */}
+       <div className="card bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200">
+         <div className="flex items-center justify-between mb-4">
+           <div>
+             <h3 className="text-xl font-bold text-gray-900">SPX Analysis Summary</h3>
+             <p className="text-sm text-gray-600">
+               {filteredConditions.length} conditions across {selectedTimeframes.size} timeframes
+             </p>
+           </div>
+           <div className="text-right">
              <div className="text-2xl font-bold text-blue-800">
                ${timeframeData.daily?.currentPrice.toFixed(2) || 'N/A'}
              </div>
              <div className="text-xs text-gray-500">Current Price</div>
            </div>
-        </div>
+         </div>
         
-                 <div className="grid grid-cols-2 md:grid-cols-6 gap-4 text-sm">
-           <div className="text-center">
+         <div className="grid grid-cols-2 md:grid-cols-6 gap-4 text-sm">
+           <div 
+             className="text-center cursor-pointer hover:bg-green-100 p-2 rounded transition-colors"
+             onClick={() => {
+               setSelectedStatus('BULLISH')
+               setShowSummaryModal(true)
+             }}
+           >
              <div className="font-semibold text-green-600">{bullishCount}</div>
              <div className="text-gray-600">Bullish</div>
            </div>
-           <div className="text-center">
+           <div 
+             className="text-center cursor-pointer hover:bg-red-100 p-2 rounded transition-colors"
+             onClick={() => {
+               setSelectedStatus('BEARISH')
+               setShowSummaryModal(true)
+             }}
+           >
              <div className="font-semibold text-red-600">{bearishCount}</div>
              <div className="text-gray-600">Bearish</div>
            </div>
-           <div className="text-center">
+           <div 
+             className="text-center cursor-pointer hover:bg-orange-100 p-2 rounded transition-colors"
+             onClick={() => {
+               setSelectedStatus('OVERBOUGHT')
+               setShowSummaryModal(true)
+             }}
+           >
              <div className="font-semibold text-orange-600">{overboughtCount}</div>
              <div className="text-gray-600">Overbought</div>
            </div>
-           <div className="text-center">
+           <div 
+             className="text-center cursor-pointer hover:bg-purple-100 p-2 rounded transition-colors"
+             onClick={() => {
+               setSelectedStatus('OVERSOLD')
+               setShowSummaryModal(true)
+             }}
+           >
              <div className="font-semibold text-purple-600">{oversoldCount}</div>
              <div className="text-gray-600">Oversold</div>
            </div>
-                                   <div className="text-center">
-              <div className="font-semibold text-blue-600">{Object.values(subcategoryCounts).reduce((sum, counts) => sum + (counts.NO_BIAS || 0), 0)}</div>
-              <div className="text-gray-600">No Bias</div>
-            </div>
+           <div 
+             className="text-center cursor-pointer hover:bg-blue-100 p-2 rounded transition-colors"
+             onClick={() => {
+               setSelectedStatus('NO_BIAS')
+               setShowSummaryModal(true)
+             }}
+           >
+             <div className="font-semibold text-blue-600">{Object.values(subcategoryCounts).reduce((sum, counts) => sum + (counts.NO_BIAS || 0), 0)}</div>
+             <div className="text-gray-600">No Bias</div>
+           </div>
          </div>
-      </div>
+       </div>
 
       {/* Timeframe Analysis */}
       {TIMEFRAMES.filter(tf => selectedTimeframes.has(tf.name)).map(timeframe => {
@@ -877,8 +1128,19 @@ export default function TradingChecklistV2({ marketData }: TradingChecklistProps
                </div>
              )}
           </div>
-        )
-      })}
-    </div>
-  )
-}
+                 )
+       })}
+       
+               {/* Summary Modal */}
+        <SummaryModal 
+          isOpen={showSummaryModal}
+          onClose={() => {
+            setShowSummaryModal(false)
+            setSelectedStatus(undefined)
+          }}
+          allConditions={allConditions}
+          selectedStatus={selectedStatus}
+        />
+     </div>
+   )
+ }

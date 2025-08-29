@@ -18,8 +18,8 @@
           "sellSignal": "Momentum indicators show OVERBOUGHT conditions"
         },
         "volatility": {
-          "description": "Indicators that measure market volatility",
-          "indicators": ["bollingerBands", "atr"],
+          "description": "Indicators that measure market volatility and support/resistance",
+          "indicators": ["bollingerBands", "atr", "mmlOvershoot", "mmlOversold"],
           "statusValues": ["OVERBOUGHT", "OVERSOLD", "NO_BIAS"],
           "buySignal": "Low volatility suggests potential breakout",
           "sellSignal": "High volatility suggests potential reversal"
@@ -218,6 +218,28 @@
         "bearish": "Price below POC with volume confirmation",
         "neutral": "Price at POC or low volume areas",
         "lookbackPeriod": 20
+      }
+    },
+    "mmlOvershoot": {
+      "type": "volatility",
+      "description": "Murrey Math Lines - Overshoot resistance levels",
+      "configurable": {
+        "frame": 16,
+        "multiplier": 1.5,
+        "extremeOvershoot": "+2/8 and +3/8 levels (Imminent Bearish reversal)",
+        "overshoot": "+1/8 level (Overshoot conditions)",
+        "lookbackPeriod": 24
+      }
+    },
+    "mmlOversold": {
+      "type": "volatility",
+      "description": "Murrey Math Lines - Oversold support levels", 
+      "configurable": {
+        "frame": 16,
+        "multiplier": 1.5,
+        "extremeOversold": "-2/8 and -3/8 levels (Imminent Bullish reversal)",
+        "oversold": "-1/8 level (Oversold conditions)",
+        "lookbackPeriod": 24
       }
     }
   },

@@ -1,234 +1,234 @@
-# 🚀 S&P Market Signals Dashboard
+# 🚀 TradeMatrix - Advanced Trading Analysis Framework
 
-A professional Next.js trading dashboard focused on **SPY**, **SPX**, and **ES Futures** with real-time market signals and technical analysis.
+A comprehensive, dynamic trading analysis platform that provides multi-timeframe technical analysis with configurable indicators and real-time market data integration.
 
-## 🎯 **Features**
+## ✨ Features
 
-- **Real-time S&P Market Signals** for SPY, SPX, and ES
-- **Professional Trading Dashboard** with modern UI
-- **Trade Station API Integration** for live market data
-- **Technical Indicators**: RSI, MACD, Bollinger Bands, VIX
-- **Responsive Design** optimized for all devices
-- **OAuth 2.0 Authentication** with Trade Station
-- **Real-time Data Updates** every 15 seconds
-- **Signal Confidence Scoring** with risk alerts
+### 🎯 **Dynamic Indicator Framework**
+- **Configuration-driven**: All indicators and categories are defined in `trading-config.json`
+- **No hardcoding**: Easy to add, modify, or remove indicators without code changes
+- **Flexible categorization**: Support for multiple categories and subcategories
+- **Real-time updates**: Changes to config reflect immediately in the UI
 
-## 🏦 **Broker Integration**
+### 📊 **Multi-Timeframe Analysis**
+- **Daily, 2-Hour, Weekly, Monthly** timeframes
+- **Consolidated view** with expandable sections
+- **Summary statistics** for each timeframe
+- **Cross-timeframe confluence** analysis
 
-This dashboard integrates with **Trade Station** for real market data:
+### 🔧 **Technical Indicators**
 
-- ✅ **SPY** - SPDR S&P 500 ETF Trust
-- ✅ **SPX** - S&P 500 Index (Cash)
-- ✅ **ES** - E-mini S&P 500 Futures
+#### **Directional Indicators**
+- **SMA (89-period)**: Trend direction analysis
+- **SMA Low**: Support level analysis
+- **PSAR**: Trend reversal detection
 
-## 🚀 **Quick Start**
+#### **Momentum Indicators**
+- **RSI (14-period)**: Overbought/Oversold conditions
+- **Multi-level analysis**: Strong/Moderate/Weak signals
 
-### **1. Clone & Install**
-```bash
-git clone <your-repo-url>
-cd trading-dashboard
-npm install
+#### **Volatility Indicators**
+- **Bollinger Bands (20, 50, 89)**: Volatility and trend analysis
+- **ATR (14, 20)**: Average True Range volatility measurement
+
+#### **Volume Indicators**
+- **VWAP**: Volume Weighted Average Price (configurable lookback)
+- **Volume Profile**: Point of Control and Value Area analysis
+- **Real volume data** integration from database
+
+#### **Price Action Indicators**
+- **Close vs Previous Close**: Session momentum
+- **Open vs Previous Close**: Gap analysis
+- **Close vs Previous High**: Breakout detection
+- **Gap Analysis**: Gap up/down identification
+
+### 🎨 **Modern UI/UX**
+- **Clean, responsive design** with Tailwind CSS
+- **Collapsible sections** for better information density
+- **Color-coded status indicators** (Bullish/Bearish/Overbought/Oversold/No Bias)
+- **Strength classification** (Strong/Moderate/Weak)
+- **Real-time price updates**
+
+### 📈 **Data Integration**
+- **Real-time market data** from multiple sources
+- **Historical OHLCV data** for technical analysis
+- **Database integration** with Supabase
+- **Configurable data periods** for each indicator
+
+## 🛠️ Technical Architecture
+
+### **Frontend Stack**
+- **Next.js 14** with App Router
+- **TypeScript** for type safety
+- **Tailwind CSS** for styling
+- **Lucide React** for icons
+
+### **Data Layer**
+- **Supabase** for database
+- **Real-time data fetching**
+- **Historical data management**
+- **Timeframe-specific data services**
+
+### **Analysis Engine**
+- **Custom technical analysis library**
+- **Configurable indicator parameters**
+- **Dynamic calculation methods**
+- **Multi-timeframe processing**
+
+## 📁 Project Structure
+
+```
+trade-frontend/
+├── app/                    # Next.js app directory
+├── components/             # React components
+│   ├── TradingChecklistV2.tsx    # Main analysis component
+│   ├── SignalDashboard.tsx       # Dashboard layout
+│   ├── IndicatorAnalysis.tsx     # Indicator breakdown
+│   └── Sidebar.tsx               # Navigation
+├── config/                 # Configuration files
+│   ├── trading-config.json      # Main trading configuration
+│   └── trading-config.ts        # TypeScript interfaces
+├── lib/                    # Core libraries
+│   ├── technicalAnalysis.ts     # Technical analysis functions
+│   ├── timeframeDataService.ts  # Data service layer
+│   ├── database.ts              # Database operations
+│   └── supabase.ts              # Supabase client
+└── types/                  # TypeScript type definitions
 ```
 
-### **2. Set Up Trade Station API**
-1. **Get API credentials** from [Trade Station Developers](https://developers.tradestation.com/)
-2. **Copy environment template:**
-   ```bash
-   cp env.example .env.local
-   ```
-3. **Fill in your credentials** in `.env.local`
+## ⚙️ Configuration
 
-### **3. Run Development Server**
+### **Indicator Configuration**
+All indicators are configured in `config/trading-config.json`:
+
+```json
+{
+  "indicatorCategories": {
+    "technical": {
+      "subcategories": {
+        "directional": ["sma", "smaLow", "psar"],
+        "momentum": ["rsi"],
+        "volatility": ["bollingerBands", "atr"],
+        "volume": ["vwap", "volumeProfile"]
+      }
+    },
+    "price-action": {
+      "subcategories": {
+        "price-action": ["price-action", "openVsPreviousClose", "closeVsPreviousHigh"]
+      }
+    }
+  }
+}
+```
+
+### **Lookback Periods**
+- **VWAP**: Configurable lookback (default: 10 periods)
+- **Volume Profile**: Configurable lookback (default: 20 periods)
+- **All indicators**: Dynamic data period support
+
+## 🚀 Getting Started
+
+### **Prerequisites**
+- Node.js 18+
+- npm or yarn
+- Supabase account (for database)
+
+### **Installation**
 ```bash
+# Clone the repository
+git clone <repository-url>
+cd trade-frontend
+
+# Install dependencies
+npm install
+
+# Set up environment variables
+cp env.example .env.local
+# Edit .env.local with your Supabase credentials
+
+# Run the development server
 npm run dev
 ```
 
-### **4. Connect to Trade Station**
-1. **Click "Connect Trade Station"** on the dashboard
-2. **Log in** with your Trade Station credentials
-3. **Authorize** the application
-4. **Start receiving** real market signals!
-
-## 🔑 **Trade Station Setup**
-
-### **Step 1: Create Developer Account**
-1. Visit [Trade Station Developers](https://developers.tradestation.com/)
-2. Click **"Get API Key"**
-3. **Sign up** for a free developer account
-
-### **Step 2: Create Application**
-1. **Log into** Trade Station Developer Portal
-2. Click **"Create New App"**
-3. **Configure your app:**
-   - **App Name**: `Trading Signals Dashboard`
-   - **Callback URLs**: 
-     ```
-     https://your-app.vercel.app/api/auth/callback
-     http://localhost:3000/api/auth/callback
-     ```
-
-### **Step 3: Get Credentials**
-After creating your app, you'll receive:
-- **Client ID**
-- **Client Secret**
-
-### **Step 4: Environment Variables**
-Create `.env.local` with your credentials:
-```bash
-TRADESTATION_CLIENT_ID=your_client_id_here
-TRADESTATION_CLIENT_SECRET=your_client_secret_here
-TRADESTATION_REDIRECT_URI=https://your-app.vercel.app/api/auth/callback
+### **Environment Variables**
+```env
+NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
 ```
 
-## 🚀 **Deploy to Vercel**
+## 📊 Usage
 
-### **1. Push to GitHub**
-```bash
-git add .
-git commit -m "Add Trade Station integration"
-git push origin main
-```
+### **Adding New Indicators**
+1. Add indicator definition to `trading-config.json`
+2. Add calculation logic to `TradingChecklistV2.tsx`
+3. Update TypeScript interfaces if needed
+4. Restart the application
 
-### **2. Deploy on Vercel**
-1. **Import** your GitHub repository
-2. **Add environment variables** in Vercel dashboard
-3. **Deploy** automatically
+### **Modifying Indicator Parameters**
+1. Edit the `configurable` section in `trading-config.json`
+2. Changes reflect immediately in the UI
+3. No code changes required
 
-### **3. Update Callback URLs**
-In Trade Station Developer Portal, update callback URLs to your Vercel domain.
+### **Customizing Categories**
+1. Modify `indicatorCategories` in config
+2. Add new subcategories as needed
+3. Assign indicators to appropriate categories
 
-## 🏗️ **Project Structure**
+## 🔄 Recent Updates
 
-```
-trading-dashboard/
-├── app/
-│   ├── api/
-│   │   ├── auth/
-│   │   │   ├── tradestation/     # Trade Station OAuth
-│   │   │   └── callback/         # OAuth callback handler
-│   │   └── tradestation-api/     # Market data API
-│   ├── globals.css
-│   ├── layout.tsx
-│   └── page.tsx                  # Main dashboard
-├── components/
-│   ├── Header.tsx
-│   ├── Sidebar.tsx
-│   ├── SignalDashboard.tsx       # S&P signals dashboard
-│   ├── PortfolioOverview.tsx
-│   ├── MarketWatch.tsx
-│   ├── TradingChart.tsx
-│   ├── RecentTrades.tsx
-│   └── NewsFeed.tsx
-├── data/
-│   └── mockData.ts               # Sample data (replaced by real API)
-├── env.example                    # Environment variables template
-├── TRADESTATION_SETUP.md         # Detailed setup guide
-└── package.json
-```
+### **v2.0 - Dynamic Framework**
+- ✅ **Removed hardcoded values** - fully configurable
+- ✅ **Added VWAP and Volume Profile** indicators
+- ✅ **Enhanced Price Action** with new conditions
+- ✅ **Improved UI/UX** with better information density
+- ✅ **Real volume data** integration
+- ✅ **Configurable lookback periods** for volume indicators
 
-## 🔧 **API Endpoints**
+### **v1.5 - Multi-Timeframe Support**
+- ✅ **Daily, 2-Hour, Weekly, Monthly** analysis
+- ✅ **Consolidated summary** statistics
+- ✅ **Expandable timeframe sections**
+- ✅ **Cross-timeframe confluence** analysis
 
-### **Authentication**
-- `GET /api/auth/tradestation` - Start OAuth flow
-- `GET /api/auth/callback` - Handle OAuth callback
+## 🎯 Roadmap
 
-### **Market Data**
-- `GET /api/tradestation-api?symbol=SPY` - Get SPY data
-- `GET /api/tradestation-api?symbol=SPX` - Get SPX data
-- `GET /api/tradestation-api?symbol=ES` - Get ES data
+### **Phase 3 - Confluence Logic**
+- [ ] **Confluence scoring algorithm**
+- [ ] **Signal strength weighting**
+- [ ] **Multi-indicator confirmation**
+- [ ] **Risk assessment integration**
 
-## 📊 **Signal Generation**
+### **Phase 4 - Counter-Trend Detection**
+- [ ] **Reversal pattern recognition**
+- [ ] **Divergence analysis**
+- [ ] **Overbought/Oversold reversal signals**
+- [ ] **Trend exhaustion detection**
 
-The dashboard generates trading signals based on:
+### **Phase 5 - Advanced Features**
+- [ ] **Backtesting framework**
+- [ ] **Performance analytics**
+- [ ] **Alert system**
+- [ ] **Portfolio integration**
 
-- **RSI (Relative Strength Index)** - Oversold/overbought conditions
-- **MACD** - Momentum and trend changes
-- **Bollinger Bands** - Volatility and price extremes
-- **VIX Impact** - Market fear and volatility
-- **Market Hours** - Higher confidence during active trading
+## 🤝 Contributing
 
-## 🚨 **Risk Management**
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Test thoroughly
+5. Submit a pull request
 
-- **Signal Confidence Scoring** (0-100%)
-- **High Conviction Alerts** for signals ≥80%
-- **Risk Warnings** for volatile market conditions
-- **Position Sizing Recommendations**
+## 📝 License
 
-## 🎨 **UI Components**
+This project is licensed under the MIT License - see the LICENSE file for details.
 
-- **Modern Card Design** with Tailwind CSS
-- **Responsive Grid Layouts** for all screen sizes
-- **Real-time Updates** with smooth animations
-- **Professional Color Scheme** optimized for trading
-- **Interactive Charts** with Recharts library
+## 🆘 Support
 
-## 🔒 **Security Features**
-
-- **OAuth 2.0 Authentication** with Trade Station
-- **Secure Token Storage** (localStorage for demo, database for production)
-- **Environment Variables** for sensitive credentials
-- **CSRF Protection** with state parameters
-
-## 📱 **Mobile Responsiveness**
-
-- **Mobile-first design** approach
-- **Touch-friendly** interface elements
-- **Responsive charts** and data tables
-- **Optimized navigation** for small screens
-
-## 🚀 **Performance**
-
-- **Next.js 14** with App Router
-- **Server-side rendering** for fast initial loads
-- **Optimized images** and assets
-- **Efficient data fetching** with caching
-
-## 🧪 **Testing**
-
-### **Local Development**
-```bash
-npm run dev          # Start development server
-npm run build        # Build for production
-npm run start        # Start production server
-npm run lint         # Run ESLint
-```
-
-### **API Testing**
-Test your Trade Station integration:
-```bash
-# Test authentication
-curl http://localhost:3000/api/auth/tradestation
-
-# Test market data (after authentication)
-curl "http://localhost:3000/api/tradestation-api?symbol=SPY"
-```
-
-## 📚 **Documentation**
-
-- **[Trade Station Setup Guide](TRADESTATION_SETUP.md)** - Complete integration guide
-- **[Broker Integration Guide](BROKER_INTEGRATION.md)** - Alternative broker options
-- **[Deployment Guide](DEPLOYMENT.md)** - Vercel deployment steps
-
-## 🤝 **Contributing**
-
-1. **Fork** the repository
-2. **Create** a feature branch
-3. **Make** your changes
-4. **Test** thoroughly
-5. **Submit** a pull request
-
-## 📄 **License**
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## 🆘 **Support**
-
-- **Trade Station API Issues**: [Trade Station Support](https://developers.tradestation.com/support)
-- **Dashboard Issues**: Create an issue in this repository
-- **General Questions**: Check the setup guides above
+For support and questions:
+- Create an issue in the repository
+- Check the documentation in `/config` directory
+- Review the example configurations
 
 ---
 
-**Ready to trade with real market data! 🚀📈**
-
-*Built with Next.js, TypeScript, Tailwind CSS, and Trade Station API*
+**Built with ❤️ for the trading community**

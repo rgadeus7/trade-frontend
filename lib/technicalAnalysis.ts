@@ -252,6 +252,135 @@ export class TechnicalAnalysis {
       isBearish: currentPrice < psar
     }
   }
+
+  // Calculate Murrey Math Lines (MML) levels
+  static calculateMurreyMathLevels(high: number[], low: number[], frame: number = 64, multiplier: number = 1.5): {
+    plus38: number;
+    plus28: number;
+    plus18: number;
+    eightEight: number;
+    sevenEight: number;
+    sixEight: number;
+    fiveEight: number;
+    fourEight: number;
+    threeEight: number;
+    twoEight: number;
+    oneEight: number;
+    zeroEight: number;
+    minus18: number;
+    minus28: number;
+    minus38: number;
+  } {
+    if (high.length < frame || low.length < frame) {
+      return {
+        plus38: 0, plus28: 0, plus18: 0, eightEight: 0, sevenEight: 0, sixEight: 0,
+        fiveEight: 0, fourEight: 0, threeEight: 0, twoEight: 0, oneEight: 0, zeroEight: 0,
+        minus18: 0, minus28: 0, minus38: 0
+      }
+    }
+
+    const lookback = Math.round(frame * multiplier)
+    const recentHigh = high.slice(-lookback)
+    const recentLow = low.slice(-lookback)
+
+    // Find highest/lowest price over specified lookback
+    const vLow = Math.min(...recentLow)
+    const vHigh = Math.max(...recentHigh)
+    const vDist = vHigh - vLow
+
+    // Handle negative prices
+    const tmpHigh = vLow < 0 ? 0 - vLow : vHigh
+    const tmpLow = vLow < 0 ? 0 - vLow - vDist : vLow
+    const shift = vLow < 0
+
+    // Calculate scale frame (SR)
+    const logTen = Math.log(10)
+    const log8 = Math.log(8)
+    const log2 = Math.log(2)
+
+    const sfVar = Math.log(0.4 * tmpHigh) / logTen - Math.floor(Math.log(0.4 * tmpHigh) / logTen)
+    const SR = tmpHigh > 25 ? 
+      sfVar > 0 ? Math.exp(logTen * (Math.floor(Math.log(0.4 * tmpHigh) / logTen) + 1)) : 
+      Math.exp(logTen * Math.floor(Math.log(0.4 * tmpHigh) / logTen)) : 
+      100 * Math.exp(log8 * Math.floor(Math.log(0.005 * tmpHigh) / log8))
+
+    // Calculate N and M
+    const nVar1 = Math.log(SR / (tmpHigh - tmpLow)) / log8
+    const nVar2 = nVar1 - Math.floor(nVar1)
+    const N = nVar1 <= 0 ? 0 : nVar2 === 0 ? Math.floor(nVar1) : Math.floor(nVar1) + 1
+
+    // Calculate scale interval and frame
+    const SI = SR * Math.exp(-N * log8)
+    const M = Math.floor(1.0 / log2 * Math.log((tmpHigh - tmpLow) / SI) + 0.0000001)
+    const I = Math.round((tmpHigh + tmpLow) * 0.5 / (SI * Math.exp((M - 1) * log2)))
+
+    const Bot = (I - 1) * SI * Math.exp((M - 1) * log2)
+    const Top = (I + 1) * SI * Math.exp((M - 1) * log2)
+
+    // Determine if frame shift is required
+    const doShift = tmpHigh - Top > 0.25 * (Top - Bot) || Bot - tmpLow > 0.25 * (Top - Bot)
+    const ER = doShift ? 1 : 0
+
+    const MM = ER === 0 ? M : ER === 1 && M < 2 ? M + 1 : 0
+    const NN = ER === 0 ? N : ER === 1 && M < 2 ? N : N - 1
+
+    // Recalculate if necessary
+    const finalSI = ER === 1 ? SR * Math.exp(-NN * log8) : SI
+    const finalI = ER === 1 ? Math.round((tmpHigh + tmpLow) * 0.5 / (finalSI * Math.exp((MM - 1) * log2))) : I
+    const finalBot = ER === 1 ? (finalI - 1) * finalSI * Math.exp((MM - 1) * log2) : Bot
+    const finalTop = ER === 1 ? (finalI + 1) * finalSI * Math.exp((MM - 1) * log2) : Top
+
+    // Calculate increment
+    const Increment = (finalTop - finalBot) / 8
+
+    // Calculate absolute top
+    const absTop = shift ? -(finalBot - 3 * Increment) : finalTop + 3 * Increment
+
+    // Calculate all MML levels
+    return {
+      plus38: absTop,
+      plus28: absTop - Increment,
+      plus18: absTop - 2 * Increment,
+      eightEight: absTop - 3 * Increment,
+      sevenEight: absTop - 4 * Increment,
+      sixEight: absTop - 5 * Increment,
+      fiveEight: absTop - 6 * Increment,
+      fourEight: absTop - 7 * Increment,
+      threeEight: absTop - 8 * Increment,
+      twoEight: absTop - 9 * Increment,
+      oneEight: absTop - 10 * Increment,
+      zeroEight: absTop - 11 * Increment,
+      minus18: absTop - 12 * Increment,
+      minus28: absTop - 13 * Increment,
+      minus38: absTop - 14 * Increment
+    }
+  }
+
+  // Check MML Overshoot conditions (resistance levels)
+  static checkMMLOvershootConditions(currentPrice: number, mmlLevels: ReturnType<typeof TechnicalAnalysis.calculateMurreyMathLevels>): {
+    isExtremeOvershoot: boolean;
+    isOvershoot: boolean;
+    isNormal: boolean;
+  } {
+    return {
+      isExtremeOvershoot: currentPrice >= mmlLevels.plus28, // +2/8 and +3/8
+      isOvershoot: currentPrice >= mmlLevels.plus18, // +1/8
+      isNormal: currentPrice < mmlLevels.plus18
+    }
+  }
+
+  // Check MML Oversold conditions (support levels)
+  static checkMMLOversoldConditions(currentPrice: number, mmlLevels: ReturnType<typeof TechnicalAnalysis.calculateMurreyMathLevels>): {
+    isExtremeOversold: boolean;
+    isOversold: boolean;
+    isNormal: boolean;
+  } {
+    return {
+      isExtremeOversold: currentPrice <= mmlLevels.minus28, // -2/8 and -3/8
+      isOversold: currentPrice <= mmlLevels.minus18, // -1/8
+      isNormal: currentPrice > mmlLevels.minus18
+    }
+  }
 }
 
 // Example usage:
