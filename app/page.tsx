@@ -6,7 +6,7 @@ import Sidebar from '@/components/Sidebar'
 import SignalDashboard from '@/components/SignalDashboard'
 
 export default function Dashboard() {
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true)
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false)
 
   return (
     <div className="flex h-screen bg-gray-50">

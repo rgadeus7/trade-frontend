@@ -40,7 +40,7 @@ export async function insertMarketData(data: Omit<MarketData, 'id' | 'created_at
 // Note: Removed insertIndicators function - indicators are calculated on-demand
 
 // Calculate technical indicators on-demand
-function calculateIndicators(data: MarketData[], timeframe: 'daily' | '2hour' | 'weekly' | 'monthly' = 'daily') {
+export function calculateIndicators(data: MarketData[], timeframe: 'daily' | '2hour' | 'weekly' | 'monthly' = 'daily') {
   if (data.length === 0) return { sma89: 0, ema89: 0, sma2h: 0, sma89Low: 0 }
 
   const prices = data.map(d => d.close).reverse() // Reverse to get chronological order

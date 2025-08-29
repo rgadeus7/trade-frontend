@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { Activity, BarChart3, RefreshCw } from 'lucide-react'
-import TradingChecklist from './TradingChecklist'
+import TradingChecklist from './TradingChecklistV2'
 import { MarketData } from '../types/market'
 
 interface SignalDashboardProps {
@@ -163,6 +163,8 @@ export default function SignalDashboard({
 
   return (
     <div className="space-y-6">
+
+
 
       {/* Conditional Content Display */}
       {showChecklist ? (

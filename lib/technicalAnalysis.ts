@@ -94,6 +94,103 @@ export class TechnicalAnalysis {
     return psarValues[psarValues.length - 1] || 0
   }
 
+  // Calculate VWAP (Volume Weighted Average Price)
+  static calculateVWAP(high: number[], low: number[], close: number[], volume: number[]): number {
+    if (high.length < 1 || low.length < 1 || close.length < 1 || volume.length < 1) return 0
+    
+    let cumulativeTPV = 0 // Total Price Volume
+    let cumulativeVolume = 0
+    
+    for (let i = 0; i < close.length; i++) {
+      const typicalPrice = (high[i] + low[i] + close[i]) / 3
+      const priceVolume = typicalPrice * volume[i]
+      
+      cumulativeTPV += priceVolume
+      cumulativeVolume += volume[i]
+    }
+    
+    return cumulativeVolume > 0 ? cumulativeTPV / cumulativeVolume : 0
+  }
+
+  // Calculate Volume Profile
+  static calculateVolumeProfile(high: number[], low: number[], close: number[], volume: number[], priceLevels: number = 10): {
+    poc: number; // Point of Control
+    valueArea: { upper: number; lower: number };
+    volumeDistribution: { price: number; volume: number }[];
+  } {
+    if (high.length < 1 || low.length < 1 || close.length < 1 || volume.length < 1) {
+      return {
+        poc: 0,
+        valueArea: { upper: 0, lower: 0 },
+        volumeDistribution: []
+      }
+    }
+    
+    // Find price range
+    const minPrice = Math.min(...low)
+    const maxPrice = Math.max(...high)
+    const priceRange = maxPrice - minPrice
+    const priceStep = priceRange / priceLevels
+    
+    // Create price buckets
+    const volumeBuckets: { [key: number]: number } = {}
+    
+    for (let i = 0; i < close.length; i++) {
+      const typicalPrice = (high[i] + low[i] + close[i]) / 3
+      const bucketIndex = Math.floor((typicalPrice - minPrice) / priceStep)
+      const bucketPrice = minPrice + (bucketIndex * priceStep)
+      
+      volumeBuckets[bucketPrice] = (volumeBuckets[bucketPrice] || 0) + volume[i]
+    }
+    
+    // Find Point of Control (highest volume price level)
+    let poc = 0
+    let maxVolume = 0
+    
+    for (const [price, vol] of Object.entries(volumeBuckets)) {
+      if (vol > maxVolume) {
+        maxVolume = vol
+        poc = parseFloat(price)
+      }
+    }
+    
+    // Calculate Value Area (70% of volume)
+    const totalVolume = Object.values(volumeBuckets).reduce((sum, vol) => sum + vol, 0)
+    const valueAreaVolume = totalVolume * 0.7
+    
+    const sortedBuckets = Object.entries(volumeBuckets)
+      .map(([price, volume]) => ({ price: parseFloat(price), volume }))
+      .sort((a, b) => a.price - b.price)
+    
+    let cumulativeVolume = 0
+    let valueAreaLower = poc
+    let valueAreaUpper = poc
+    
+    // Find value area around POC
+    for (let i = 0; i < sortedBuckets.length; i++) {
+      cumulativeVolume += sortedBuckets[i].volume
+      if (cumulativeVolume >= valueAreaVolume / 2) {
+        valueAreaLower = sortedBuckets[i].price
+        break
+      }
+    }
+    
+    cumulativeVolume = 0
+    for (let i = sortedBuckets.length - 1; i >= 0; i--) {
+      cumulativeVolume += sortedBuckets[i].volume
+      if (cumulativeVolume >= valueAreaVolume / 2) {
+        valueAreaUpper = sortedBuckets[i].price
+        break
+      }
+    }
+    
+    return {
+      poc,
+      valueArea: { upper: valueAreaUpper, lower: valueAreaLower },
+      volumeDistribution: sortedBuckets
+    }
+  }
+
   // Simple gap analysis
   static analyzeGap(currentOpen: number, previousClose: number): { isGapUp: boolean; isGapDown: boolean; gapSize: number; gapPercentage: number } {
     const gapSize = currentOpen - previousClose

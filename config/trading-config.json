@@ -1,39 +1,49 @@
 {
   "indicatorCategories": {
-    "trend": {
-      "description": "Indicators that show overall trend direction",
-      "indicators": ["sma", "ema", "macd", "adx", "priceAction", "gapAnalysis"],
-      "statusValues": ["BULLISH", "BEARISH", "NEUTRAL"],
-      "buySignal": "Majority of trend indicators are BULLISH",
-      "sellSignal": "Majority of trend indicators are BEARISH"
+    "technical": {
+      "description": "Technical analysis indicators",
+      "subcategories": {
+        "directional": {
+          "description": "Indicators that show trend direction",
+          "indicators": ["sma", "sma-low", "psar"],
+          "statusValues": ["BULLISH", "BEARISH", "NEUTRAL"],
+          "buySignal": "Price above moving averages or bullish trend",
+          "sellSignal": "Price below moving averages or bearish trend"
+        },
+        "momentum": {
+          "description": "Oscillators that show overbought/oversold conditions",
+          "indicators": ["rsi"],
+          "statusValues": ["OVERBOUGHT", "OVERSOLD", "NO_BIAS"],
+          "buySignal": "Momentum indicators show OVERSOLD conditions",
+          "sellSignal": "Momentum indicators show OVERBOUGHT conditions"
+        },
+        "volatility": {
+          "description": "Indicators that measure market volatility",
+          "indicators": ["bollingerBands", "atr"],
+          "statusValues": ["OVERBOUGHT", "OVERSOLD", "NO_BIAS"],
+          "buySignal": "Low volatility suggests potential breakout",
+          "sellSignal": "High volatility suggests potential reversal"
+        },
+        "volume": {
+          "description": "Volume-based indicators for market analysis",
+          "indicators": ["vwap", "volumeProfile"],
+          "statusValues": ["BULLISH", "BEARISH", "NO_BIAS"],
+          "buySignal": "Price above VWAP with high volume",
+          "sellSignal": "Price below VWAP with high volume"
+        }
+      }
     },
-    "momentum": {
-      "description": "Oscillators that show overbought/oversold conditions",
-      "indicators": ["rsi", "stoch", "cci", "williamsR"],
-      "statusValues": ["OVERBOUGHT", "OVERSOLD", "NEUTRAL"],
-      "buySignal": "Momentum indicators show OVERSOLD conditions",
-      "sellSignal": "Momentum indicators show OVERBOUGHT conditions"
-    },
-    "volatility": {
-      "description": "Indicators that measure market volatility",
-      "indicators": ["bollingerBands", "atr", "keltner", "donchian"],
-      "statusValues": ["HIGH_VOLATILITY", "LOW_VOLATILITY", "NORMAL_VOLATILITY"],
-      "buySignal": "Low volatility suggests potential breakout",
-      "sellSignal": "High volatility suggests potential reversal"
-    },
-    "volume": {
-      "description": "Volume-based indicators for confirmation",
-      "indicators": ["volumeSma", "obv", "vwap", "moneyFlow"],
-      "statusValues": ["HIGH_VOLUME", "LOW_VOLUME", "NORMAL_VOLUME"],
-      "buySignal": "High volume confirms bullish moves",
-      "sellSignal": "High volume confirms bearish moves"
-    },
-    "support_resistance": {
-      "description": "Price levels that act as support or resistance",
-      "indicators": ["pivotPoints", "fibonacci", "keyLevels"],
-      "statusValues": ["ABOVE_RESISTANCE", "BELOW_SUPPORT", "NEAR_LEVEL", "BETWEEN_LEVELS"],
-      "buySignal": "Price near support level",
-      "sellSignal": "Price near resistance level"
+    "price-action": {
+      "description": "Price action analysis",
+      "subcategories": {
+        "price-action": {
+          "description": "Price action patterns and movements",
+          "indicators": ["price-action", "openVsPreviousClose", "closeVsPreviousHigh"],
+          "statusValues": ["BULLISH", "BEARISH"],
+          "buySignal": "Price action shows bullish patterns",
+          "sellSignal": "Price action shows bearish patterns"
+        }
+      }
     }
   },
   "indicators": {
@@ -131,15 +141,6 @@
         "normalVolume": "Current volume between 0.5x and 1.5x SMA"
       }
     },
-    "vwap": {
-      "type": "volume",
-      "description": "Volume Weighted Average Price",
-      "configurable": {
-        "bullish": "Price > VWAP",
-        "bearish": "Price < VWAP",
-        "neutral": "Price within 0.2% of VWAP"
-      }
-    },
     "atr": {
       "type": "volatility",
       "periods": [14, 21],
@@ -176,6 +177,47 @@
         "gapUp": "Open > Previous close by > 0.5%",
         "gapDown": "Open < Previous close by > 0.5%",
         "noGap": "Open within 0.5% of previous close"
+      }
+    },
+    "openVsPreviousClose": {
+      "type": "trend",
+      "description": "Open vs Previous Close comparison",
+      "configurable": {
+        "bullish": "Open > Previous Close",
+        "bearish": "Open < Previous Close",
+        "neutral": "Open = Previous Close"
+      }
+    },
+    "closeVsPreviousHigh": {
+      "type": "trend", 
+      "description": "Close vs Previous High comparison",
+      "configurable": {
+        "bullish": "Close > Previous High",
+        "bearish": "Close < Previous High",
+        "neutral": "Close = Previous High"
+      }
+    },
+    "vwap": {
+      "type": "volume",
+      "description": "Volume Weighted Average Price - key support/resistance level",
+      "configurable": {
+        "bullish": "Price > VWAP with above-average volume",
+        "bearish": "Price < VWAP with above-average volume",
+        "neutral": "Price near VWAP or low volume",
+        "volumeThreshold": 1.2,
+        "lookbackPeriod": 10
+      }
+    },
+    "volumeProfile": {
+      "type": "volume",
+      "description": "Volume Profile - identifies high-volume price levels",
+      "configurable": {
+        "poc": "Point of Control - highest volume price level",
+        "valueArea": "70% of volume within price range",
+        "bullish": "Price above POC with volume confirmation",
+        "bearish": "Price below POC with volume confirmation",
+        "neutral": "Price at POC or low volume areas",
+        "lookbackPeriod": 20
       }
     }
   },

@@ -9,7 +9,7 @@ import {
   getBollingerBandsStrengthThreshold, 
   getPriceActionStrengthThreshold, 
   getGapAnalysisStrengthThreshold,
-  isDirectionalIndicator,
+  isTrendIndicator,
   isMomentumIndicator
 } from '../config/trading-config'
 import { MarketData } from '../types/market'

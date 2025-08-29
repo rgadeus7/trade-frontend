@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { IndicatorAnalysisService, SignalAnalysis, CategoryAnalysis } from '../lib/indicatorAnalysis'
-import { getConfig, getIndicatorCategories } from '../config/trading-config'
+import { getConfig, getIndicatorCategories, getSubcategoriesByCategory } from '../config/trading-config'
 import { TrendingUp, TrendingDown, Minus, AlertTriangle, CheckCircle, XCircle } from 'lucide-react'
 
 interface IndicatorAnalysisProps {
@@ -257,8 +257,11 @@ export default function IndicatorAnalysis({ marketData, timeframe = 'daily' }: I
               <h4 className="font-medium capitalize mb-2">{category}</h4>
               <p className="text-sm text-gray-600 mb-2">{catConfig.description}</p>
               <div className="text-xs text-gray-500">
-                <div>Indicators: {catConfig.indicators.length}</div>
-                <div>Status Values: {catConfig.statusValues.join(', ')}</div>
+                {getSubcategoriesByCategory(category).map(subcategory => (
+                  <div key={subcategory} className="capitalize">
+                    {subcategory}: {catConfig.subcategories[subcategory].indicators.length}
+                  </div>
+                ))}
               </div>
             </div>
           ))}

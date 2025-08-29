@@ -39,9 +39,9 @@ export default function Sidebar({ isOpen }: SidebarProps) {
     }`}>
       <div className="p-4">
         <div className="flex items-center justify-between mb-6">
-          {isOpen && (
-            <h1 className="text-xl font-bold text-gradient">TradingPro</h1>
-          )}
+                     {isOpen && (
+             <h1 className="text-xl font-bold text-gradient">TradeMatrix</h1>
+           )}
           <div className="h-8 w-8 bg-primary-600 rounded-lg flex items-center justify-center">
             <span className="text-white font-bold text-sm">TP</span>
           </div>
@@ -84,16 +84,7 @@ export default function Sidebar({ isOpen }: SidebarProps) {
           </div>
         )} */}
 
-        {/* Market Status */}
-        {isOpen && (
-          <div className="mt-6 p-3 bg-green-50 rounded-lg">
-            <div className="flex items-center space-x-2">
-              <div className="h-2 w-2 bg-green-500 rounded-full animate-pulse"></div>
-              <span className="text-sm text-green-700 font-medium">Market Open</span>
-            </div>
-            <p className="text-xs text-green-600 mt-1">Trading until 4:00 PM ET</p>
-          </div>
-        )}
+
       </div>
     </div>
   )

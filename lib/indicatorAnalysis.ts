@@ -15,6 +15,7 @@ import {
 export interface IndicatorResult {
   indicator: string
   category: string
+  subcategory: string
   status: string
   strength: 'STRONG' | 'MODERATE' | 'WEAK'
   value: number
@@ -212,10 +213,15 @@ export class IndicatorAnalysisService {
       const categoryConfig = this.config.indicatorCategories[category as keyof typeof this.config.indicatorCategories]
       const categoryResults: IndicatorResult[] = []
 
-      for (const indicatorName of categoryConfig.indicators) {
-        const result = this.calculateIndicator(indicatorName, marketData, timeframe)
-        if (result) {
-          categoryResults.push(result)
+      // Handle new config structure with subcategories
+      const subcategories = Object.keys(categoryConfig.subcategories)
+      for (const subcategory of subcategories) {
+        const subcategoryConfig = categoryConfig.subcategories[subcategory]
+        for (const indicatorName of subcategoryConfig.indicators) {
+          const result = this.calculateIndicator(indicatorName, marketData, timeframe)
+          if (result) {
+            categoryResults.push(result)
+          }
         }
       }
 
@@ -288,7 +294,8 @@ export class IndicatorAnalysisService {
 
     return {
       indicator: indicatorName,
-      category,
+      category: category.category,
+      subcategory: category.subcategory,
       status,
       strength,
       value,
@@ -467,16 +474,43 @@ export class IndicatorAnalysisService {
     }
 
     for (const category of categoryResults) {
-      if (category.category === 'trend') {
-        facts.trendBullishCount = category.summary.bullish
-        facts.trendBearishCount = category.summary.bearish
-        facts.trendNeutralCount = category.summary.neutral
-      } else if (category.category === 'momentum') {
-        facts.momentumOverboughtCount = category.summary.overbought
-        facts.momentumOversoldCount = category.summary.oversold
-        facts.momentumNeutralCount = category.summary.neutral
-      } else if (category.category === 'volume') {
-        // Check if any volume indicators show high volume
+      // Group results by subcategory
+      const subcategoryGroups: { [key: string]: any[] } = {}
+      
+      for (const result of category.results) {
+        if (!subcategoryGroups[result.subcategory]) {
+          subcategoryGroups[result.subcategory] = []
+        }
+        subcategoryGroups[result.subcategory].push(result)
+      }
+
+      // Process each subcategory
+      for (const [subcategory, results] of Object.entries(subcategoryGroups)) {
+        const bullishCount = results.filter(r => r.status === 'BULLISH').length
+        const bearishCount = results.filter(r => r.status === 'BEARISH').length
+        const neutralCount = results.filter(r => r.status === 'NEUTRAL' || r.status === 'NO_BIAS').length
+        const overboughtCount = results.filter(r => r.status === 'OVERBOUGHT').length
+        const oversoldCount = results.filter(r => r.status === 'OVERSOLD').length
+
+        // Map subcategories to fact categories based on their typical behavior
+        if (subcategory === 'directional' || subcategory === 'price-action') {
+          facts.trendBullishCount += bullishCount
+          facts.trendBearishCount += bearishCount
+          facts.trendNeutralCount += neutralCount
+        } else if (subcategory === 'momentum') {
+          facts.momentumOverboughtCount += overboughtCount
+          facts.momentumOversoldCount += oversoldCount
+          facts.momentumNeutralCount += neutralCount
+        } else if (subcategory === 'volatility') {
+          // Volatility indicators can contribute to both trend and momentum signals
+          facts.trendBullishCount += bullishCount
+          facts.trendBearishCount += bearishCount
+          facts.trendNeutralCount += neutralCount
+        }
+      }
+
+      // Check for volume confirmation
+      if (category.category === 'volume' || category.results.some(r => r.status === 'HIGH_VOLUME')) {
         facts.volumeConfirmation = category.results.some(result => 
           result.status === 'HIGH_VOLUME' || result.status === 'BULLISH'
         )

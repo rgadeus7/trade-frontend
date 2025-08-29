@@ -1,9 +1,16 @@
-export interface IndicatorCategory {
+export interface IndicatorSubcategory {
   description: string
   indicators: string[]
   statusValues: string[]
   buySignal: string
   sellSignal: string
+}
+
+export interface IndicatorCategory {
+  description: string
+  subcategories: {
+    [key: string]: IndicatorSubcategory
+  }
 }
 
 export interface ConfigurableThresholds {
@@ -41,6 +48,8 @@ export interface ConfigurableThresholds {
   strongBullish?: string
   strongBearish?: string
   squeeze?: string
+  volumeThreshold?: number
+  lookbackPeriod?: number
 }
 
 export interface Indicator {
@@ -96,11 +105,8 @@ export interface RiskManagement {
 
 export interface TradingConfig {
   indicatorCategories: {
-    trend: IndicatorCategory
-    momentum: IndicatorCategory
-    volatility: IndicatorCategory
-    volume: IndicatorCategory
-    support_resistance: IndicatorCategory
+    technical: IndicatorCategory
+    'price-action': IndicatorCategory
   }
   indicators: {
     [key: string]: Indicator
@@ -125,10 +131,21 @@ export const getConfig = () => tradingConfig
 
 // Category helpers
 export const getIndicatorCategories = () => tradingConfig.indicatorCategories
-export const getCategoryByIndicator = (indicatorName: string): string | null => {
+
+export const getCategoryByIndicator = (indicatorName: string): { category: string; subcategory: string } | null => {
   for (const [category, config] of Object.entries(tradingConfig.indicatorCategories)) {
-    if (config.indicators.includes(indicatorName)) {
-      return category
+    if (category === 'technical') {
+      for (const [subcategory, subConfig] of Object.entries(config.subcategories)) {
+        if (subConfig.indicators.includes(indicatorName)) {
+          return { category, subcategory }
+        }
+      }
+    } else if (category === 'price-action') {
+      for (const [subcategory, subConfig] of Object.entries(config.subcategories)) {
+        if (subConfig.indicators.includes(indicatorName)) {
+          return { category, subcategory }
+        }
+      }
     }
   }
   return null
@@ -145,23 +162,23 @@ export const getIndicatorType = (indicatorName: string): string | null => {
 }
 
 export const isTrendIndicator = (indicatorName: string): boolean => {
-  return getIndicatorType(indicatorName) === 'trend'
+  const categoryInfo = getCategoryByIndicator(indicatorName)
+  return categoryInfo?.subcategory === 'directional'
 }
 
 export const isMomentumIndicator = (indicatorName: string): boolean => {
-  return getIndicatorType(indicatorName) === 'momentum'
+  const categoryInfo = getCategoryByIndicator(indicatorName)
+  return categoryInfo?.subcategory === 'momentum'
 }
 
 export const isVolatilityIndicator = (indicatorName: string): boolean => {
-  return getIndicatorType(indicatorName) === 'volatility'
+  const categoryInfo = getCategoryByIndicator(indicatorName)
+  return categoryInfo?.subcategory === 'volatility'
 }
 
-export const isVolumeIndicator = (indicatorName: string): boolean => {
-  return getIndicatorType(indicatorName) === 'volume'
-}
-
-export const isSupportResistanceIndicator = (indicatorName: string): boolean => {
-  return getIndicatorType(indicatorName) === 'support_resistance'
+export const isPriceActionIndicator = (indicatorName: string): boolean => {
+  const categoryInfo = getCategoryByIndicator(indicatorName)
+  return categoryInfo?.category === 'price-action'
 }
 
 // Threshold helpers
@@ -185,6 +202,14 @@ export const getStochConfig = () => {
   return tradingConfig.indicators.stoch
 }
 
+export const getVWAPLookbackPeriod = (): number => {
+  return tradingConfig.indicators.vwap.configurable.lookbackPeriod || 20
+}
+
+export const getVolumeProfileLookbackPeriod = (): number => {
+  return tradingConfig.indicators.volumeProfile.configurable.lookbackPeriod || 50
+}
+
 // Signal logic helpers
 export const getBuyConditions = () => tradingConfig.signalLogic.buyConditions
 export const getSellConditions = () => tradingConfig.signalLogic.sellConditions
@@ -199,29 +224,51 @@ export const getTimeframeWeight = (timeframe: string): number => {
 // Risk management helpers
 export const getRiskManagement = () => tradingConfig.riskManagement
 
-// Legacy compatibility (keeping old function names)
-export const getDirectionalIndicators = () => tradingConfig.indicatorCategories.trend.indicators
-export const getMomentumIndicators = () => tradingConfig.indicatorCategories.momentum.indicators
-
-export const isDirectionalIndicator = (indicatorName: string): boolean => {
-  return isTrendIndicator(indicatorName)
+// New helper functions for the config-based framework
+export const getIndicatorsByCategory = (category: string, subcategory?: string): string[] => {
+  const categoryConfig = tradingConfig.indicatorCategories[category as keyof typeof tradingConfig.indicatorCategories]
+  if (categoryConfig && subcategory) {
+    return categoryConfig.subcategories[subcategory]?.indicators || []
+  }
+  return []
 }
 
-// Additional helper functions for the new framework
-export const getIndicatorsByCategory = (category: string): string[] => {
-  return tradingConfig.indicatorCategories[category as keyof typeof tradingConfig.indicatorCategories]?.indicators || []
+export const getStatusValuesByCategory = (category: string, subcategory?: string): string[] => {
+  const categoryConfig = tradingConfig.indicatorCategories[category as keyof typeof tradingConfig.indicatorCategories]
+  if (categoryConfig && subcategory) {
+    return categoryConfig.subcategories[subcategory]?.statusValues || []
+  }
+  return []
 }
 
-export const getStatusValuesByCategory = (category: string): string[] => {
-  return tradingConfig.indicatorCategories[category as keyof typeof tradingConfig.indicatorCategories]?.statusValues || []
+export const getCategoryBuySignal = (category: string, subcategory?: string): string => {
+  const categoryConfig = tradingConfig.indicatorCategories[category as keyof typeof tradingConfig.indicatorCategories]
+  if (categoryConfig && subcategory) {
+    return categoryConfig.subcategories[subcategory]?.buySignal || ''
+  }
+  return ''
 }
 
-export const getCategoryBuySignal = (category: string): string => {
-  return tradingConfig.indicatorCategories[category as keyof typeof tradingConfig.indicatorCategories]?.buySignal || ''
+export const getCategorySellSignal = (category: string, subcategory?: string): string => {
+  const categoryConfig = tradingConfig.indicatorCategories[category as keyof typeof tradingConfig.indicatorCategories]
+  if (categoryConfig && subcategory) {
+    return categoryConfig.subcategories[subcategory]?.sellSignal || ''
+  }
+  return ''
 }
 
-export const getCategorySellSignal = (category: string): string => {
-  return tradingConfig.indicatorCategories[category as keyof typeof tradingConfig.indicatorCategories]?.sellSignal || ''
+// Helper function to get all subcategories for a category
+export const getSubcategoriesByCategory = (category: string): string[] => {
+  const categoryConfig = tradingConfig.indicatorCategories[category as keyof typeof tradingConfig.indicatorCategories]
+  if (categoryConfig) {
+    return Object.keys(categoryConfig.subcategories)
+  }
+  return []
+}
+
+// New function to get indicator categorization from config
+export const getIndicatorCategorization = (indicatorId: string): { category: string; subcategory: string } | null => {
+  return getCategoryByIndicator(indicatorId)
 }
 
 // Legacy functions for backward compatibility
