@@ -41,9 +41,10 @@ export async function insertMarketData(data: Omit<MarketData, 'id' | 'created_at
 
 // Calculate technical indicators on-demand
 function calculateIndicators(data: MarketData[], timeframe: 'daily' | '2hour' | 'weekly' | 'monthly' = 'daily') {
-  if (data.length === 0) return { sma89: 0, ema89: 0, sma2h: 0 }
+  if (data.length === 0) return { sma89: 0, ema89: 0, sma2h: 0, sma89Low: 0 }
 
   const prices = data.map(d => d.close).reverse() // Reverse to get chronological order
+  const lowPrices = data.map(d => d.low).reverse() // Add low prices for SMA low calculation
 
   // Calculate SMA
   const calculateSMA = (prices: number[], period: number) => {
@@ -81,14 +82,16 @@ function calculateIndicators(data: MarketData[], timeframe: 'daily' | '2hour' | 
     return {
       sma89: calculateSMA(prices, 89),
       ema89: calculateEMA(prices, 89),
-      sma2h: 0 // Not applicable for these timeframes
+      sma2h: 0, // Not applicable for these timeframes
+      sma89Low: calculateSMA(lowPrices, 89) // Add SMA low calculation
     }
   } else {
     // For 2-hour data, also use 89-period SMA
     return {
       sma89: 0, // Not applicable for 2-hour data
       ema89: 0, // Not applicable for 2-hour data
-      sma2h: calculateSMA(prices, 89) // Use 89-period SMA for 2-hour data
+      sma2h: calculateSMA(prices, 89), // Use 89-period SMA for 2-hour data
+      sma89Low: calculateSMA(lowPrices, 89) // Add SMA low calculation for 2-hour
     }
   }
 }
@@ -146,6 +149,35 @@ export async function getDashboardData() {
         //   console.log(`VIX Debug - Hourly indicators:`, hourlyIndicators)
         // }
         
+        // Prepare full OHLC historical data (reversed for chronological order)
+        const dailyOHLC = {
+          open: dailyHistoricalData.map(d => d.open).reverse(),
+          high: dailyHistoricalData.map(d => d.high).reverse(),
+          low: dailyHistoricalData.map(d => d.low).reverse(),
+          close: dailyHistoricalData.map(d => d.close).reverse()
+        }
+        
+        const hourlyOHLC = {
+          open: hourlyHistoricalData.map(d => d.open).reverse(),
+          high: hourlyHistoricalData.map(d => d.high).reverse(),
+          low: hourlyHistoricalData.map(d => d.low).reverse(),
+          close: hourlyHistoricalData.map(d => d.close).reverse()
+        }
+        
+        const weeklyOHLC = {
+          open: weeklyHistoricalData.map(d => d.open).reverse(),
+          high: weeklyHistoricalData.map(d => d.high).reverse(),
+          low: weeklyHistoricalData.map(d => d.low).reverse(),
+          close: weeklyHistoricalData.map(d => d.close).reverse()
+        }
+        
+        const monthlyOHLC = {
+          open: monthlyHistoricalData.map(d => d.open).reverse(),
+          high: monthlyHistoricalData.map(d => d.high).reverse(),
+          low: monthlyHistoricalData.map(d => d.low).reverse(),
+          close: monthlyHistoricalData.map(d => d.close).reverse()
+        }
+        
         return {
           symbol: displaySymbol,
           instrumentType: displaySymbol as 'SPY' | 'SPX' | 'ES' | 'VIX',
@@ -171,6 +203,10 @@ export async function getDashboardData() {
           sma89: dailyIndicators.sma89 || 0, // From daily data, fallback to 0
           ema89: dailyIndicators.ema89 || 0, // From daily data, fallback to 0
           sma2h: hourlyIndicators.sma2h || 0, // From 2-hour data, fallback to 0
+          // Add SMA low values
+          sma89Low: dailyIndicators.sma89Low || 0,
+          weeklySMALow: weeklyIndicators.sma89Low || 0,
+          monthlySMALow: monthlyIndicators.sma89Low || 0,
           // Add weekly and monthly data
           weekly: latestWeekly ? {
             price: latestWeekly.close,
@@ -191,11 +227,16 @@ export async function getDashboardData() {
           // Add indicators for weekly and monthly
           weeklySMA: weeklyIndicators.sma89 || 0,
           monthlySMA: monthlyIndicators.sma89 || 0,
-          // Add historical prices for RSI and Bollinger Bands calculations
+          // Add historical prices for RSI and Bollinger Bands calculations (keep for backward compatibility)
           dailyHistoricalPrices: dailyHistoricalData.map(d => d.close).reverse(), // Reverse to get chronological order
           hourlyHistoricalPrices: hourlyHistoricalData.map(d => d.close).reverse(), // Reverse to get chronological order
           weeklyHistoricalPrices: weeklyHistoricalData.map(d => d.close).reverse(), // Reverse to get chronological order
-          monthlyHistoricalPrices: monthlyHistoricalData.map(d => d.close).reverse() // Reverse to get chronological order
+          monthlyHistoricalPrices: monthlyHistoricalData.map(d => d.close).reverse(), // Reverse to get chronological order
+          // Add full OHLC historical data
+          dailyHistoricalOHLC: dailyOHLC,
+          hourlyHistoricalOHLC: hourlyOHLC,
+          weeklyHistoricalOHLC: weeklyOHLC,
+          monthlyHistoricalOHLC: monthlyOHLC
         }
       })
     )

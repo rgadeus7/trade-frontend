@@ -1,4 +1,4 @@
-import { SMA, EMA, RSI, MACD, BollingerBands } from 'technicalindicators'
+import { SMA, EMA, RSI, MACD, BollingerBands, ATR, PSAR } from 'technicalindicators'
 
 // Simple wrapper functions for common indicators
 export class TechnicalAnalysis {
@@ -66,6 +66,34 @@ export class TechnicalAnalysis {
     }
   }
 
+  // Calculate ATR (Average True Range)
+  static calculateATR(high: number[], low: number[], close: number[], period: number = 14): number {
+    if (high.length < period + 1 || low.length < period + 1 || close.length < period + 1) return 0
+    
+    const atrValues = ATR.calculate({ 
+      high, 
+      low, 
+      close, 
+      period 
+    })
+    
+    return atrValues[atrValues.length - 1] || 0
+  }
+
+  // Calculate PSAR (Parabolic SAR)
+  static calculatePSAR(high: number[], low: number[], step: number = 0.02, max: number = 0.2): number {
+    if (high.length < 2 || low.length < 2) return 0
+    
+    const psarValues = PSAR.calculate({ 
+      high, 
+      low, 
+      step, 
+      max 
+    })
+    
+    return psarValues[psarValues.length - 1] || 0
+  }
+
   // Simple gap analysis
   static analyzeGap(currentOpen: number, previousClose: number): { isGapUp: boolean; isGapDown: boolean; gapSize: number; gapPercentage: number } {
     const gapSize = currentOpen - previousClose
@@ -100,6 +128,31 @@ export class TechnicalAnalysis {
       isOverbought: rsi > 70,
       isOversold: rsi < 30,
       isNeutral: rsi >= 30 && rsi <= 70
+    }
+  }
+
+  // Check ATR conditions
+  static checkATRConditions(atr: number, averageATR: number): {
+    isHighVolatility: boolean;
+    isLowVolatility: boolean;
+    isNormalVolatility: boolean;
+  } {
+    const ratio = atr / averageATR
+    return {
+      isHighVolatility: ratio > 2,
+      isLowVolatility: ratio < 0.5,
+      isNormalVolatility: ratio >= 0.5 && ratio <= 2
+    }
+  }
+
+  // Check PSAR conditions
+  static checkPSARConditions(currentPrice: number, psar: number): {
+    isBullish: boolean;
+    isBearish: boolean;
+  } {
+    return {
+      isBullish: currentPrice > psar,
+      isBearish: currentPrice < psar
     }
   }
 }

@@ -37,8 +37,38 @@ export interface MarketData {
   sma2h: number
   weeklySMA: number
   monthlySMA: number
+  // Add SMA low values
+  sma89Low: number
+  weeklySMALow: number
+  monthlySMALow: number
+  // Update historical data to include full OHLC
   dailyHistoricalPrices?: number[]
   hourlyHistoricalPrices?: number[]
   weeklyHistoricalPrices?: number[]
   monthlyHistoricalPrices?: number[]
+  // Add full OHLC historical data
+  dailyHistoricalOHLC?: {
+    open: number[]
+    high: number[]
+    low: number[]
+    close: number[]
+  }
+  hourlyHistoricalOHLC?: {
+    open: number[]
+    high: number[]
+    low: number[]
+    close: number[]
+  }
+  weeklyHistoricalOHLC?: {
+    open: number[]
+    high: number[]
+    low: number[]
+    close: number[]
+  }
+  monthlyHistoricalOHLC?: {
+    open: number[]
+    high: number[]
+    low: number[]
+    close: number[]
+  }
 }
