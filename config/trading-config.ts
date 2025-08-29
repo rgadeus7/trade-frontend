@@ -52,6 +52,20 @@ export interface ConfigurableThresholds {
   lookbackPeriod?: number
   frame?: number
   multiplier?: number
+  ignoreWicks?: boolean
+  showHistoricalLevels?: boolean
+  threshold?: number
+  // Support/Resistance specific properties
+  minSwingStrength?: number
+  tolerance?: number
+  minTouches?: number
+  keyLevels?: string
+  nearResistance?: string
+  nearSupport?: string
+  useSophisticatedDetection?: boolean
+  leftLength?: number
+  rightLength?: number
+  usePivotDetection?: boolean
 }
 
 export interface Indicator {
@@ -236,6 +250,39 @@ export const getMMLOversoldMultiplier = (): number => {
   return tradingConfig.indicators.mmlOversold.configurable.multiplier || 1.5
 }
 
+export const getMMLOvershootIgnoreWicks = (): boolean => {
+  return tradingConfig.indicators.mmlOvershoot.configurable.ignoreWicks || true
+}
+
+export const getMMLOversoldIgnoreWicks = (): boolean => {
+  return tradingConfig.indicators.mmlOversold.configurable.ignoreWicks || true
+}
+
+export const getMMLOvershootShowHistoricalLevels = (): boolean => {
+  return tradingConfig.indicators.mmlOvershoot.configurable.showHistoricalLevels || false
+}
+
+export const getMMLOversoldShowHistoricalLevels = (): boolean => {
+  return tradingConfig.indicators.mmlOversold.configurable.showHistoricalLevels || false
+}
+
+// ATR helper functions
+export const getATRPeriods = (): number[] => {
+  return tradingConfig.indicators.atr.periods || [14, 21]
+}
+
+export const getATRPrimaryPeriod = (): number => {
+  const periods = getATRPeriods()
+  return periods[0] || 14
+}
+
+export const getATRComparisonPeriod = (): number => {
+  const periods = getATRPeriods()
+  return periods[1] || 21
+}
+
+
+
 // Signal logic helpers
 export const getBuyConditions = () => tradingConfig.signalLogic.buyConditions
 export const getSellConditions = () => tradingConfig.signalLogic.sellConditions
@@ -308,4 +355,37 @@ export const getPriceActionStrengthThreshold = (): number => {
 
 export const getGapAnalysisStrengthThreshold = (): number => {
   return tradingConfig.indicators.gapAnalysis.strengthThreshold || 0.01
+}
+
+// Support/Resistance helper functions
+export const getSwingHighLowLeftLength = (): number => {
+  return tradingConfig.indicators.swingHighLow?.configurable?.leftLength || 10
+}
+
+export const getSwingHighLowRightLength = (): number => {
+  return tradingConfig.indicators.swingHighLow?.configurable?.rightLength || 10
+}
+
+export const getSwingHighLowMinStrength = (): number => {
+  return tradingConfig.indicators.swingHighLow?.configurable?.minSwingStrength || 0.01
+}
+
+export const getSwingHighLowUsePivotDetection = (): boolean => {
+  return tradingConfig.indicators.swingHighLow?.configurable?.usePivotDetection || true
+}
+
+export const getPivotPointsTolerance = (): number => {
+  return tradingConfig.indicators.pivotPoints?.configurable?.tolerance || 0.005
+}
+
+export const getFibonacciTolerance = (): number => {
+  return tradingConfig.indicators.fibonacciRetracements?.configurable?.tolerance || 0.01
+}
+
+export const getHorizontalLevelsTolerance = (): number => {
+  return tradingConfig.indicators.horizontalLevels?.configurable?.tolerance || 0.002
+}
+
+export const getHorizontalLevelsMinTouches = (): number => {
+  return tradingConfig.indicators.horizontalLevels?.configurable?.minTouches || 2
 }

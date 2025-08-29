@@ -17,10 +17,26 @@ import {
   getMMLOvershootFrame,
   getMMLOversoldFrame,
   getMMLOvershootMultiplier,
-  getMMLOversoldMultiplier
+  getMMLOversoldMultiplier,
+  getMMLOvershootIgnoreWicks,
+  getMMLOversoldIgnoreWicks,
+  getMMLOvershootShowHistoricalLevels,
+  getMMLOversoldShowHistoricalLevels,
+  getATRPeriods,
+  getATRPrimaryPeriod,
+  getATRComparisonPeriod,
+  getSwingHighLowLeftLength,
+  getSwingHighLowRightLength,
+  getSwingHighLowMinStrength,
+  getSwingHighLowUsePivotDetection,
+  getPivotPointsTolerance,
+  getFibonacciTolerance,
+  getHorizontalLevelsTolerance,
+  getHorizontalLevelsMinTouches
 } from '../config/trading-config'
 import { MarketData } from '../types/market'
 import { timeframeDataService, type TimeframeData as ServiceTimeframeData } from '../lib/timeframeDataService'
+import IndicatorVisualization from './IndicatorVisualization'
 
 interface TradingChecklistProps {
   marketData: MarketData[]
@@ -168,7 +184,14 @@ function SummaryModal({ isOpen, onClose, allConditions, selectedStatus }: Summar
 // ===== INDICATOR DEFINITIONS =====
 // Each indicator is defined once with its logic and parameters
 
-const INDICATORS = {
+const INDICATORS: {
+  [key: string]: {
+    id: string
+    label: string
+    getCategory: () => { category: string; subcategory: string }
+    calculate: (timeframe: TimeframeData, ...args: any[]) => ChecklistItem | ChecklistItem[] | null
+  }
+} = {
   // SMA-based indicators
   sma: {
     id: 'sma',
@@ -294,40 +317,44 @@ const INDICATORS = {
     }
   },
 
-  // ATR indicator
+  // ATR indicator (configurable periods)
   atr: {
     id: 'atr',
     label: 'ATR Volatility',
     getCategory: () => getIndicatorCategorization('atr') || { category: 'technical', subcategory: 'volatility' },
     calculate: (timeframe: TimeframeData): ChecklistItem | null => {
-      if (!timeframe.historicalOHLC || timeframe.historicalOHLC.close.length < 15) return null
+      const primaryPeriod = getATRPrimaryPeriod()
+      const comparisonPeriod = getATRComparisonPeriod()
+      const maxPeriod = Math.max(primaryPeriod, comparisonPeriod)
+      
+      if (!timeframe.historicalOHLC || timeframe.historicalOHLC.close.length < maxPeriod) return null
       
       const { high, low, close } = timeframe.historicalOHLC
-      const atr14 = TechnicalAnalysis.calculateATR(high, low, close, 14)
-      const atr20 = TechnicalAnalysis.calculateATR(high, low, close, 20)
+      const atrPrimary = TechnicalAnalysis.calculateATR(high, low, close, primaryPeriod)
+      const atrComparison = TechnicalAnalysis.calculateATR(high, low, close, comparisonPeriod)
       
-      const atrConditions = TechnicalAnalysis.checkATRConditions(atr14, atr20)
+      const atrConditions = TechnicalAnalysis.checkATRConditions(atrPrimary, atrComparison)
       
-             let status: 'BULLISH' | 'BEARISH' | 'NO_BIAS' | 'OVERBOUGHT' | 'OVERSOLD'
-       let strength: 'STRONG' | 'MODERATE' | 'WEAK'
-       
-       if (atrConditions.isHighVolatility) {
-         status = 'OVERBOUGHT'
-         strength = 'STRONG'
-       } else if (atrConditions.isLowVolatility) {
-         status = 'OVERSOLD'
-         strength = 'MODERATE'
-       } else {
-         status = 'NO_BIAS'
-         strength = 'WEAK'
-       }
+      let status: 'BULLISH' | 'BEARISH' | 'NO_BIAS' | 'OVERBOUGHT' | 'OVERSOLD'
+      let strength: 'STRONG' | 'MODERATE' | 'WEAK'
+      
+      if (atrConditions.isHighVolatility) {
+        status = 'OVERBOUGHT'
+        strength = 'STRONG'
+      } else if (atrConditions.isLowVolatility) {
+        status = 'OVERSOLD'
+        strength = 'MODERATE'
+      } else {
+        status = 'NO_BIAS'
+        strength = 'WEAK'
+      }
       
       return {
         id: `${timeframe.name}-atr`,
-        label: `${timeframe.name} ATR 14-Volatility`,
+        label: `${timeframe.name} ATR ${primaryPeriod}-Volatility`,
         status,
         strength,
-        description: `SPX: ATR ${atr14.toFixed(2)} | 20-period Avg: ${atr20.toFixed(2)} | ${atrConditions.isHighVolatility ? 'High Volatility' : atrConditions.isLowVolatility ? 'Low Volatility' : 'Normal Volatility'}`,
+        description: `SPX: ATR ${atrPrimary.toFixed(2)} | ${comparisonPeriod}-period Avg: ${atrComparison.toFixed(2)} | ${atrConditions.isHighVolatility ? 'High Volatility' : atrConditions.isLowVolatility ? 'Low Volatility' : 'Normal Volatility'}`,
         category: INDICATORS.atr.getCategory().category,
         subcategory: INDICATORS.atr.getCategory().subcategory
       }
@@ -464,7 +491,7 @@ const INDICATORS = {
      }
    },
 
-   // MML Overshoot indicator
+   // MML Overshoot indicator (TradingView-style)
    mmlOvershoot: {
      id: 'mml-overshoot',
      label: 'MML Overshoot',
@@ -473,18 +500,24 @@ const INDICATORS = {
        const lookbackPeriod = getMMLOvershootLookbackPeriod()
        if (!timeframe.historicalOHLC || timeframe.historicalOHLC.close.length < lookbackPeriod) return null
        
-       const { high, low } = timeframe.historicalOHLC
+       const { high, low, open, close } = timeframe.historicalOHLC
        
        // Use only the last N periods for MML calculation
        const recentHigh = high.slice(-lookbackPeriod)
        const recentLow = low.slice(-lookbackPeriod)
+       const recentOpen = open.slice(-lookbackPeriod)
+       const recentClose = close.slice(-lookbackPeriod)
        
-               const frame = getMMLOvershootFrame()
-        const multiplier = getMMLOvershootMultiplier()
-        const mmlLevels = TechnicalAnalysis.calculateMurreyMathLevels(recentHigh, recentLow, frame, multiplier)
-        const mmlConditions = TechnicalAnalysis.checkMMLOvershootConditions(timeframe.price, mmlLevels)
+       // TradingView-style MML calculation with universal parameters
+       const frame = getMMLOvershootFrame()
+       const multiplier = getMMLOvershootMultiplier()
+       const ignoreWicks = getMMLOvershootIgnoreWicks()
        
-               // Always return a result, even if no overshoot conditions are met
+       // Calculate MML levels using the improved algorithm
+       const mmlLevels = TechnicalAnalysis.calculateMurreyMathLevels(recentHigh, recentLow, frame, multiplier)
+       const mmlConditions = TechnicalAnalysis.checkMMLOvershootConditions(timeframe.price, mmlLevels)
+       
+       // Always return a result, even if no overshoot conditions are met
        
        let status: 'OVERBOUGHT' | 'OVERSOLD' | 'NO_BIAS'
        let strength: 'STRONG' | 'MODERATE' | 'WEAK'
@@ -502,17 +535,17 @@ const INDICATORS = {
        
        return {
          id: `${timeframe.name}-mml-overshoot`,
-         label: `${timeframe.name} MML Overshoot`,
+         label: `${timeframe.name} MML Overshoot (TV)`,
          status,
          strength,
-         description: `SPX: $${timeframe.price.toFixed(2)} | +2/8: $${mmlLevels.plus28.toFixed(2)} | +1/8: $${mmlLevels.plus18.toFixed(2)}`,
+         description: `SPX: $${timeframe.price.toFixed(2)} | +2/8: $${mmlLevels.plus28.toFixed(2)} | +1/8: $${mmlLevels.plus18.toFixed(2)} | Frame: ${frame}×${multiplier}`,
          category: INDICATORS.mmlOvershoot.getCategory().category,
          subcategory: INDICATORS.mmlOvershoot.getCategory().subcategory
        }
      }
    },
 
-   // MML Oversold indicator
+   // MML Oversold indicator (TradingView-style)
    mmlOversold: {
      id: 'mml-oversold',
      label: 'MML Oversold',
@@ -521,18 +554,24 @@ const INDICATORS = {
        const lookbackPeriod = getMMLOversoldLookbackPeriod()
        if (!timeframe.historicalOHLC || timeframe.historicalOHLC.close.length < lookbackPeriod) return null
        
-       const { high, low } = timeframe.historicalOHLC
+       const { high, low, open, close } = timeframe.historicalOHLC
        
        // Use only the last N periods for MML calculation
        const recentHigh = high.slice(-lookbackPeriod)
        const recentLow = low.slice(-lookbackPeriod)
+       const recentOpen = open.slice(-lookbackPeriod)
+       const recentClose = close.slice(-lookbackPeriod)
        
-               const frame = getMMLOversoldFrame()
-        const multiplier = getMMLOversoldMultiplier()
-        const mmlLevels = TechnicalAnalysis.calculateMurreyMathLevels(recentHigh, recentLow, frame, multiplier)
-        const mmlConditions = TechnicalAnalysis.checkMMLOversoldConditions(timeframe.price, mmlLevels)
+       // TradingView-style MML calculation with universal parameters
+       const frame = getMMLOversoldFrame()
+       const multiplier = getMMLOversoldMultiplier()
+       const ignoreWicks = getMMLOversoldIgnoreWicks()
        
-               // Always return a result, even if no oversold conditions are met
+       // Calculate MML levels using the improved algorithm
+       const mmlLevels = TechnicalAnalysis.calculateMurreyMathLevels(recentHigh, recentLow, frame, multiplier)
+       const mmlConditions = TechnicalAnalysis.checkMMLOversoldConditions(timeframe.price, mmlLevels)
+       
+       // Always return a result, even if no oversold conditions are met
        
        let status: 'OVERBOUGHT' | 'OVERSOLD' | 'NO_BIAS'
        let strength: 'STRONG' | 'MODERATE' | 'WEAK'
@@ -550,10 +589,10 @@ const INDICATORS = {
        
        return {
          id: `${timeframe.name}-mml-oversold`,
-         label: `${timeframe.name} MML Oversold`,
+         label: `${timeframe.name} MML Oversold (TV)`,
          status,
          strength,
-         description: `SPX: $${timeframe.price.toFixed(2)} | -1/8: $${mmlLevels.minus18.toFixed(2)} | -2/8: $${mmlLevels.minus28.toFixed(2)}`,
+         description: `SPX: $${timeframe.price.toFixed(2)} | -1/8: $${mmlLevels.minus18.toFixed(2)} | -2/8: $${mmlLevels.minus28.toFixed(2)} | Frame: ${frame}×${multiplier}`,
          category: INDICATORS.mmlOversold.getCategory().category,
          subcategory: INDICATORS.mmlOversold.getCategory().subcategory
        }
@@ -565,7 +604,7 @@ const INDICATORS = {
     id: 'price-action',
     label: 'Price Action',
     getCategory: () => getIndicatorCategorization('price-action') || { category: 'price-action', subcategory: 'price-action-v1' },
-    calculate: (timeframe: TimeframeData): ChecklistItem[] => {
+         calculate: (timeframe: TimeframeData): ChecklistItem[] => {
       const items: ChecklistItem[] = []
       
       if (!timeframe.previousClose) return items
@@ -582,17 +621,24 @@ const INDICATORS = {
         subcategory: INDICATORS.priceAction.getCategory().subcategory
       })
       
-      // Gap analysis
-      const gapAnalysis = TechnicalAnalysis.analyzeGap(timeframe.price, timeframe.previousClose)
-      items.push({
-        id: `${timeframe.name}-gap`,
-        label: `${timeframe.name} Gap Analysis`,
-        status: gapAnalysis.isGapUp ? 'BULLISH' : 'BEARISH',
-        strength: gapAnalysis.gapPercentage > getGapAnalysisStrengthThreshold() * 100 ? 'STRONG' : 'MODERATE',
-        description: `SPX: ${gapAnalysis.isGapUp ? 'Gap Up' : 'No Gap'} | Size: ${gapAnalysis.gapPercentage.toFixed(2)}%`,
-        category: INDICATORS.priceAction.getCategory().category,
-        subcategory: INDICATORS.priceAction.getCategory().subcategory
-      })
+      // Gap analysis - compare current open vs previous close
+      if (timeframe.historicalOHLC && timeframe.historicalOHLC.open.length >= 1) {
+        const currentOpen = timeframe.historicalOHLC.open[timeframe.historicalOHLC.open.length - 1]
+        const gapAnalysis = TechnicalAnalysis.analyzeGap(currentOpen, timeframe.previousClose)
+        items.push({
+          id: `${timeframe.name}-gap`,
+          label: `${timeframe.name} Gap Analysis`,
+          status: gapAnalysis.isGapUp ? 'BULLISH' : 'BEARISH',
+          strength: gapAnalysis.gapPercentage > getGapAnalysisStrengthThreshold() * 100 ? 'STRONG' : 'MODERATE',
+          description: `Open: $${currentOpen.toFixed(2)} | Previous Close: $${timeframe.previousClose.toFixed(2)} | ${gapAnalysis.isGapUp ? 'Gap Up' : gapAnalysis.isGapDown ? 'Gap Down' : 'No Gap'} | Size: ${gapAnalysis.gapPercentage.toFixed(2)}%`,
+          category: INDICATORS.priceAction.getCategory().category,
+          subcategory: INDICATORS.priceAction.getCategory().subcategory
+        })
+      }
+
+             
+
+             
       
       return items
     }
@@ -626,33 +672,350 @@ const INDICATORS = {
     }
   },
 
-  // Close vs Previous High indicator
-  closeVsPreviousHigh: {
-    id: 'close-vs-previous-high',
-    label: 'Close vs Previous High',
-    getCategory: () => getIndicatorCategorization('closeVsPreviousHigh') || { category: 'price-action', subcategory: 'price-action' },
-    calculate: (timeframe: TimeframeData): ChecklistItem | null => {
-      if (!timeframe.historicalOHLC || timeframe.historicalOHLC.high.length < 2) return null
-      
-      const currentClose = timeframe.price
-      const previousHigh = timeframe.historicalOHLC.high[timeframe.historicalOHLC.high.length - 2]
-      
-      if (!currentClose || !previousHigh) return null
-      
-      const status = currentClose > previousHigh ? 'BULLISH' : 'BEARISH'
-      const strength = Math.abs(currentClose - previousHigh) / previousHigh > getPriceActionStrengthThreshold() ? 'STRONG' : 'MODERATE'
-      
-      return {
-        id: `${timeframe.name}-close-vs-previous-high`,
-        label: `${timeframe.name} Close vs Previous High`,
-        status,
-        strength,
-        description: `Close: $${currentClose.toFixed(2)} | Previous High: $${previousHigh.toFixed(2)}`,
-        category: INDICATORS.closeVsPreviousHigh.getCategory().category,
-        subcategory: INDICATORS.closeVsPreviousHigh.getCategory().subcategory
+     // Close vs Previous High indicator
+   closeVsPreviousHigh: {
+     id: 'close-vs-previous-high',
+     label: 'Close vs Previous High',
+     getCategory: () => getIndicatorCategorization('closeVsPreviousHigh') || { category: 'price-action', subcategory: 'price-action' },
+     calculate: (timeframe: TimeframeData): ChecklistItem | null => {
+       if (!timeframe.historicalOHLC || timeframe.historicalOHLC.high.length < 2) return null
+       
+       const currentClose = timeframe.price
+       const previousHigh = timeframe.historicalOHLC.high[timeframe.historicalOHLC.high.length - 2]
+       
+       if (!currentClose || !previousHigh) return null
+       
+       const status = currentClose > previousHigh ? 'BULLISH' : 'BEARISH'
+       const strength = Math.abs(currentClose - previousHigh) / previousHigh > getPriceActionStrengthThreshold() ? 'STRONG' : 'MODERATE'
+       
+       return {
+         id: `${timeframe.name}-close-vs-previous-high`,
+         label: `${timeframe.name} Close vs Previous High`,
+         status,
+         strength,
+         description: `Close: $${currentClose.toFixed(2)} | Previous High: $${previousHigh.toFixed(2)}`,
+         category: INDICATORS.closeVsPreviousHigh.getCategory().category,
+         subcategory: INDICATORS.closeVsPreviousHigh.getCategory().subcategory
+       }
+     }
+   },
+
+       // Close vs Previous Low indicator
+    closeVsPreviousLow: {
+      id: 'close-vs-previous-low',
+      label: 'Close vs Previous Low',
+      getCategory: () => getIndicatorCategorization('closeVsPreviousLow') || { category: 'price-action', subcategory: 'price-action' },
+      calculate: (timeframe: TimeframeData): ChecklistItem | null => {
+        if (!timeframe.historicalOHLC || timeframe.historicalOHLC.low.length < 2) return null
+        
+        const currentClose = timeframe.price
+        const previousLow = timeframe.historicalOHLC.low[timeframe.historicalOHLC.low.length - 2]
+        
+        if (!currentClose || !previousLow) return null
+        
+        const status = currentClose > previousLow ? 'BULLISH' : 'BEARISH'
+        const strength = Math.abs(currentClose - previousLow) / previousLow > getPriceActionStrengthThreshold() ? 'STRONG' : 'MODERATE'
+        
+        return {
+          id: `${timeframe.name}-close-vs-previous-low`,
+          label: `${timeframe.name} Close vs Previous Low`,
+          status,
+          strength,
+          description: `Close: $${currentClose.toFixed(2)} | Previous Low: $${previousLow.toFixed(2)}`,
+          category: INDICATORS.closeVsPreviousLow.getCategory().category,
+          subcategory: INDICATORS.closeVsPreviousLow.getCategory().subcategory
+        }
+      }
+    },
+
+    // Swing High/Low Detection
+    swingHighLow: {
+      id: 'swing-high-low',
+      label: 'Swing High/Low Analysis',
+      getCategory: () => getIndicatorCategorization('swingHighLow') || { category: 'technical', subcategory: 'support-resistance' },
+      calculate: (timeframe: TimeframeData): ChecklistItem | null => {
+        // Get pivot detection parameters
+        let leftLength = getSwingHighLowLeftLength()
+        let rightLength = getSwingHighLowRightLength()
+        
+        // Adjust lengths based on timeframe for better results
+        if (timeframe.name.toLowerCase() === 'monthly') {
+          leftLength = Math.max(leftLength, 6) // At least 6 months for monthly data
+          rightLength = Math.max(rightLength, 6)
+        } else if (timeframe.name.toLowerCase() === 'weekly') {
+          leftLength = Math.max(leftLength, 8) // At least 8 weeks for weekly data
+          rightLength = Math.max(rightLength, 8)
+        }
+        
+        if (!timeframe.historicalOHLC || timeframe.historicalOHLC.high.length < leftLength + rightLength + 1) return null
+        
+        const { high, low } = timeframe.historicalOHLC
+        // Use pivot-based detection (TradingView-style)
+        const usePivotDetection = getSwingHighLowUsePivotDetection()
+        const swingHighs = usePivotDetection 
+          ? TechnicalAnalysis.findPivotHighs(high, leftLength, rightLength)
+          : TechnicalAnalysis.findPivotHighs(high, leftLength, rightLength) // Default to pivot detection
+        const swingLows = usePivotDetection 
+          ? TechnicalAnalysis.findPivotLows(low, leftLength, rightLength)
+          : TechnicalAnalysis.findPivotLows(low, leftLength, rightLength) // Default to pivot detection
+        
+        if (swingHighs.length === 0 && swingLows.length === 0) return null
+        
+        // Get the most recent swing high and low
+        const recentSwingHigh = swingHighs.length > 0 ? swingHighs[swingHighs.length - 1] : null
+        const recentSwingLow = swingLows.length > 0 ? swingLows[swingLows.length - 1] : null
+        
+        const currentPrice = timeframe.price
+        let status: 'BULLISH' | 'BEARISH' | 'NO_BIAS'
+        let strength: 'STRONG' | 'MODERATE' | 'WEAK'
+        let description = ''
+        
+        if (recentSwingLow && recentSwingHigh) {
+          const distanceToLow = Math.abs(currentPrice - recentSwingLow.value) / recentSwingLow.value
+          const distanceToHigh = Math.abs(currentPrice - recentSwingHigh.value) / recentSwingHigh.value
+          const minStrength = getSwingHighLowMinStrength()
+          
+          // Calculate swing range for context
+          const swingRange = recentSwingHigh.value - recentSwingLow.value
+          const rangePercentage = (swingRange / recentSwingLow.value) * 100
+          
+          if (distanceToLow <= minStrength) {
+            status = 'BULLISH'
+            strength = distanceToLow <= minStrength / 2 ? 'STRONG' : 'MODERATE'
+            description = `Near Swing Low: $${recentSwingLow.value.toFixed(2)} | Distance: ${(distanceToLow * 100).toFixed(2)}% | Range: ${rangePercentage.toFixed(1)}%`
+          } else if (distanceToHigh <= minStrength) {
+            status = 'BEARISH'
+            strength = distanceToHigh <= minStrength / 2 ? 'STRONG' : 'MODERATE'
+            description = `Near Swing High: $${recentSwingHigh.value.toFixed(2)} | Distance: ${(distanceToHigh * 100).toFixed(2)}% | Range: ${rangePercentage.toFixed(1)}%`
+          } else {
+            status = 'NO_BIAS'
+            strength = 'WEAK'
+            const positionInRange = ((currentPrice - recentSwingLow.value) / swingRange) * 100
+            description = `Between Swings | High: $${recentSwingHigh.value.toFixed(2)} | Low: $${recentSwingLow.value.toFixed(2)} | Position: ${positionInRange.toFixed(1)}%`
+          }
+        } else {
+          status = 'NO_BIAS'
+          strength = 'WEAK'
+          description = `Insufficient swing data | Highs: ${swingHighs.length} | Lows: ${swingLows.length}`
+        }
+        
+        return {
+          id: `${timeframe.name}-swing-high-low`,
+          label: `${timeframe.name} Swing High/Low`,
+          status,
+          strength,
+          description,
+          category: INDICATORS.swingHighLow.getCategory().category,
+          subcategory: INDICATORS.swingHighLow.getCategory().subcategory
+        }
+      }
+    },
+
+    // Pivot Points
+    pivotPoints: {
+      id: 'pivot-points',
+      label: 'Pivot Points Analysis',
+      getCategory: () => getIndicatorCategorization('pivotPoints') || { category: 'technical', subcategory: 'support-resistance' },
+      calculate: (timeframe: TimeframeData): ChecklistItem | null => {
+        if (!timeframe.historicalOHLC || timeframe.historicalOHLC.high.length < 1) return null
+        
+        const { high, low, close } = timeframe.historicalOHLC
+        const currentHigh = high[high.length - 1]
+        const currentLow = low[low.length - 1]
+        const currentClose = close[close.length - 1]
+        
+        const pivotPoints = TechnicalAnalysis.calculatePivotPoints(currentHigh, currentLow, currentClose)
+        const pivotConditions = TechnicalAnalysis.checkPivotPointConditions(timeframe.price, pivotPoints)
+        
+        let status: 'BULLISH' | 'BEARISH' | 'NO_BIAS'
+        let strength: 'STRONG' | 'MODERATE' | 'WEAK'
+        let description = ''
+        
+        if (pivotConditions.nearS1 || pivotConditions.nearS2 || pivotConditions.nearS3) {
+          status = 'BULLISH'
+          strength = 'MODERATE'
+          const nearLevel = pivotConditions.nearS1 ? 'S1' : pivotConditions.nearS2 ? 'S2' : 'S3'
+          const levelValue = pivotConditions.nearS1 ? pivotPoints.s1 : pivotConditions.nearS2 ? pivotPoints.s2 : pivotPoints.s3
+          description = `Near Support ${nearLevel}: $${levelValue.toFixed(2)} | PP: $${pivotPoints.pp.toFixed(2)}`
+        } else if (pivotConditions.nearR1 || pivotConditions.nearR2 || pivotConditions.nearR3) {
+          status = 'BEARISH'
+          strength = 'MODERATE'
+          const nearLevel = pivotConditions.nearR1 ? 'R1' : pivotConditions.nearR2 ? 'R2' : 'R3'
+          const levelValue = pivotConditions.nearR1 ? pivotPoints.r1 : pivotConditions.nearR2 ? pivotPoints.r2 : pivotPoints.r3
+          description = `Near Resistance ${nearLevel}: $${levelValue.toFixed(2)} | PP: $${pivotPoints.pp.toFixed(2)}`
+        } else if (pivotConditions.abovePP) {
+          status = 'BULLISH'
+          strength = 'WEAK'
+          description = `Above PP: $${pivotPoints.pp.toFixed(2)} | R1: $${pivotPoints.r1.toFixed(2)}`
+        } else {
+          status = 'BEARISH'
+          strength = 'WEAK'
+          description = `Below PP: $${pivotPoints.pp.toFixed(2)} | S1: $${pivotPoints.s1.toFixed(2)}`
+        }
+        
+        return {
+          id: `${timeframe.name}-pivot-points`,
+          label: `${timeframe.name} Pivot Points`,
+          status,
+          strength,
+          description,
+          category: INDICATORS.pivotPoints.getCategory().category,
+          subcategory: INDICATORS.pivotPoints.getCategory().subcategory
+        }
+      }
+    },
+
+    // Fibonacci Retracements
+    fibonacciRetracements: {
+      id: 'fibonacci-retracements',
+      label: 'Fibonacci Retracements',
+      getCategory: () => getIndicatorCategorization('fibonacciRetracements') || { category: 'technical', subcategory: 'support-resistance' },
+      calculate: (timeframe: TimeframeData): ChecklistItem | null => {
+        const leftLength = getSwingHighLowLeftLength()
+        const rightLength = getSwingHighLowRightLength()
+        if (!timeframe.historicalOHLC || timeframe.historicalOHLC.high.length < leftLength + rightLength + 1) return null
+        
+        const { high, low } = timeframe.historicalOHLC
+        // Use pivot-based detection (TradingView-style)
+        const usePivotDetection = getSwingHighLowUsePivotDetection()
+        const swingHighs = usePivotDetection 
+          ? TechnicalAnalysis.findPivotHighs(high, leftLength, rightLength)
+          : TechnicalAnalysis.findPivotHighs(high, leftLength, rightLength) // Default to pivot detection
+        const swingLows = usePivotDetection 
+          ? TechnicalAnalysis.findPivotLows(low, leftLength, rightLength)
+          : TechnicalAnalysis.findPivotLows(low, leftLength, rightLength) // Default to pivot detection
+        
+        if (swingHighs.length === 0 || swingLows.length === 0) return null
+        
+        // Use the most recent swing high and low
+        const swingHigh = swingHighs[swingHighs.length - 1].value
+        const swingLow = swingLows[swingLows.length - 1].value
+        
+        const fibLevels = TechnicalAnalysis.calculateFibonacciRetracements(swingHigh, swingLow)
+        const currentPrice = timeframe.price
+        const tolerance = getFibonacciTolerance()
+        
+        let status: 'BULLISH' | 'BEARISH' | 'NO_BIAS'
+        let strength: 'STRONG' | 'MODERATE' | 'WEAK'
+        let description = ''
+        
+        // Check if price is near any Fibonacci level
+        const levels = [
+          { name: '0%', value: fibLevels.level0 },
+          { name: '23.6%', value: fibLevels.level236 },
+          { name: '38.2%', value: fibLevels.level382 },
+          { name: '50%', value: fibLevels.level500 },
+          { name: '61.8%', value: fibLevels.level618 },
+          { name: '78.6%', value: fibLevels.level786 },
+          { name: '100%', value: fibLevels.level100 }
+        ]
+        
+        let nearestLevel = null
+        let minDistance = Infinity
+        
+        for (const level of levels) {
+          const distance = Math.abs(currentPrice - level.value) / level.value
+          if (distance <= tolerance && distance < minDistance) {
+            nearestLevel = level
+            minDistance = distance
+          }
+        }
+        
+        if (nearestLevel) {
+          if (currentPrice > nearestLevel.value) {
+            status = 'BULLISH'
+            strength = minDistance <= tolerance / 2 ? 'STRONG' : 'MODERATE'
+          } else {
+            status = 'BEARISH'
+            strength = minDistance <= tolerance / 2 ? 'STRONG' : 'MODERATE'
+          }
+          description = `Near ${nearestLevel.name}: $${nearestLevel.value.toFixed(2)} | Swing High: $${swingHigh.toFixed(2)} | Swing Low: $${swingLow.toFixed(2)}`
+        } else {
+          status = 'NO_BIAS'
+          strength = 'WEAK'
+          description = `Between Fib Levels | High: $${swingHigh.toFixed(2)} | Low: $${swingLow.toFixed(2)}`
+        }
+        
+        return {
+          id: `${timeframe.name}-fibonacci`,
+          label: `${timeframe.name} Fibonacci`,
+          status,
+          strength,
+          description,
+          category: INDICATORS.fibonacciRetracements.getCategory().category,
+          subcategory: INDICATORS.fibonacciRetracements.getCategory().subcategory
+        }
+      }
+    },
+
+    // Horizontal Support/Resistance Levels
+    horizontalLevels: {
+      id: 'horizontal-levels',
+      label: 'Horizontal S/R Levels',
+      getCategory: () => getIndicatorCategorization('horizontalLevels') || { category: 'technical', subcategory: 'support-resistance' },
+      calculate: (timeframe: TimeframeData): ChecklistItem | null => {
+        if (!timeframe.historicalOHLC || timeframe.historicalOHLC.close.length < 20) return null
+        
+        const { high, low, close } = timeframe.historicalOHLC
+        const tolerance = getHorizontalLevelsTolerance()
+        const minTouches = getHorizontalLevelsMinTouches()
+        
+        const horizontalLevels = TechnicalAnalysis.findHorizontalLevels(high, low, close, tolerance)
+        const currentPrice = timeframe.price
+        
+        // Filter levels based on minimum touches
+        const significantResistance = horizontalLevels.resistance.filter(level => {
+          let touches = 0
+          for (const price of close) {
+            if (Math.abs(price - level) / level <= tolerance) touches++
+          }
+          return touches >= minTouches
+        })
+        
+        const significantSupport = horizontalLevels.support.filter(level => {
+          let touches = 0
+          for (const price of close) {
+            if (Math.abs(price - level) / level <= tolerance) touches++
+          }
+          return touches >= minTouches
+        })
+        
+        const supportResistanceConditions = TechnicalAnalysis.checkSupportResistanceConditions(
+          currentPrice, 
+          significantSupport, 
+          significantResistance, 
+          tolerance
+        )
+        
+        let status: 'BULLISH' | 'BEARISH' | 'NO_BIAS'
+        let strength: 'STRONG' | 'MODERATE' | 'WEAK'
+        let description = ''
+        
+        if (supportResistanceConditions.nearSupport) {
+          status = 'BULLISH'
+          strength = 'MODERATE'
+          description = `Near Support: $${supportResistanceConditions.atSupport?.toFixed(2)} | Levels: ${significantSupport.length}`
+        } else if (supportResistanceConditions.nearResistance) {
+          status = 'BEARISH'
+          strength = 'MODERATE'
+          description = `Near Resistance: $${supportResistanceConditions.atResistance?.toFixed(2)} | Levels: ${significantResistance.length}`
+        } else {
+          status = 'NO_BIAS'
+          strength = 'WEAK'
+          description = `Between Levels | Support: ${significantSupport.length} | Resistance: ${significantResistance.length}`
+        }
+        
+        return {
+          id: `${timeframe.name}-horizontal-levels`,
+          label: `${timeframe.name} Horizontal S/R`,
+          status,
+          strength,
+          description,
+          category: INDICATORS.horizontalLevels.getCategory().category,
+          subcategory: INDICATORS.horizontalLevels.getCategory().subcategory
+        }
       }
     }
-  }
 }
 
 // ===== TIMEFRAME CONFIGURATION =====
@@ -761,17 +1124,17 @@ export default function TradingChecklistV2({ marketData }: TradingChecklistProps
         return
       }
 
-      try {
-        setLoading(true)
-        console.log('Fetching timeframe-specific data for SPX...')
-        const data = await timeframeDataService.getAllTimeframesData('SPX', 500)
-        setTimeframeData(data)
-        console.log('Timeframe data fetched:', Object.keys(data).filter(k => data[k as keyof typeof data]))
-      } catch (error) {
-        console.error('Error fetching timeframe data:', error)
-      } finally {
-        setLoading(false)
-      }
+             try {
+         setLoading(true)
+         console.log('Fetching timeframe-specific data for SPX...')
+         const data = await timeframeDataService.getAllTimeframesData('SPX', 500)
+         setTimeframeData(data)
+         console.log('Timeframe data fetched:', Object.keys(data).filter(k => data[k as keyof typeof data]))
+       } catch (error) {
+         console.error('Error fetching timeframe data:', error)
+       } finally {
+         setLoading(false)
+       }
     }
 
     fetchTimeframeData()
@@ -834,21 +1197,21 @@ export default function TradingChecklistV2({ marketData }: TradingChecklistProps
     
           // Apply all indicators to this timeframe
       Object.values(INDICATORS).forEach(indicator => {
-        if (indicator.id === 'price-action') {
-          // Price action returns multiple items
-          const items = indicator.calculate(timeframeDataItem) as ChecklistItem[]
-          allConditions.push(...items)
-        } else if (indicator.id === 'bb') {
-          // Bollinger Bands - add for different periods
-          [20, 50, 89].forEach(period => {
-            const bbItem = indicator.calculate(timeframeDataItem, period) as ChecklistItem | null
-            if (bbItem) allConditions.push(bbItem)
-          })
-        } else {
-          // Other indicators return single item
-          const item = indicator.calculate(timeframeDataItem) as ChecklistItem | null
-          if (item) allConditions.push(item)
-        }
+                          if (indicator.id === 'price-action') {
+           // Price action returns multiple items
+           const items = indicator.calculate(timeframeDataItem) as ChecklistItem[]
+           allConditions.push(...items)
+         } else if (indicator.id === 'bb') {
+           // Bollinger Bands - add for different periods
+           [20, 50, 89].forEach(period => {
+             const bbItem = indicator.calculate(timeframeDataItem, period) as ChecklistItem | null
+             if (bbItem) allConditions.push(bbItem)
+           })
+         } else {
+           // Other indicators return single item
+           const item = indicator.calculate(timeframeDataItem) as ChecklistItem | null
+           if (item) allConditions.push(item)
+         }
       })
   })
 
@@ -1131,16 +1494,19 @@ export default function TradingChecklistV2({ marketData }: TradingChecklistProps
                  )
        })}
        
-               {/* Summary Modal */}
-        <SummaryModal 
-          isOpen={showSummaryModal}
-          onClose={() => {
-            setShowSummaryModal(false)
-            setSelectedStatus(undefined)
-          }}
-          allConditions={allConditions}
-          selectedStatus={selectedStatus}
-        />
-     </div>
-   )
- }
+                       {/* Summary Modal */}
+         <SummaryModal 
+           isOpen={showSummaryModal}
+           onClose={() => {
+             setShowSummaryModal(false)
+             setSelectedStatus(undefined)
+           }}
+           allConditions={allConditions}
+           selectedStatus={selectedStatus}
+         />
+
+        {/* Indicator Visualization */}
+        <IndicatorVisualization allConditions={allConditions} />
+      </div>
+    )
+  }

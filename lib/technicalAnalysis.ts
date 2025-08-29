@@ -381,6 +381,221 @@ export class TechnicalAnalysis {
       isNormal: currentPrice > mmlLevels.minus18
     }
   }
+
+  // Pivot-based Swing High/Low Detection (TradingView-style)
+  static findPivotHighs(high: number[], leftLength: number = 10, rightLength: number = 10): { index: number; value: number }[] {
+    if (high.length < leftLength + rightLength + 1) return []
+    
+    const pivotHighs: { index: number; value: number }[] = []
+    
+    for (let i = leftLength; i < high.length - rightLength; i++) {
+      const currentValue = high[i]
+      let isPivotHigh = true
+      
+      // Check left side
+      for (let j = i - leftLength; j < i; j++) {
+        if (high[j] >= currentValue) {
+          isPivotHigh = false
+          break
+        }
+      }
+      
+      // Check right side
+      if (isPivotHigh) {
+        for (let j = i + 1; j <= i + rightLength; j++) {
+          if (high[j] >= currentValue) {
+            isPivotHigh = false
+            break
+          }
+        }
+      }
+      
+      if (isPivotHigh) {
+        pivotHighs.push({ index: i, value: currentValue })
+      }
+    }
+    
+    return pivotHighs
+  }
+
+  static findPivotLows(low: number[], leftLength: number = 10, rightLength: number = 10): { index: number; value: number }[] {
+    if (low.length < leftLength + rightLength + 1) return []
+    
+    const pivotLows: { index: number; value: number }[] = []
+    
+    for (let i = leftLength; i < low.length - rightLength; i++) {
+      const currentValue = low[i]
+      let isPivotLow = true
+      
+      // Check left side
+      for (let j = i - leftLength; j < i; j++) {
+        if (low[j] <= currentValue) {
+          isPivotLow = false
+          break
+        }
+      }
+      
+      // Check right side
+      if (isPivotLow) {
+        for (let j = i + 1; j <= i + rightLength; j++) {
+          if (low[j] <= currentValue) {
+            isPivotLow = false
+            break
+          }
+        }
+      }
+      
+      if (isPivotLow) {
+        pivotLows.push({ index: i, value: currentValue })
+      }
+    }
+    
+    return pivotLows
+  }
+
+  // Pivot Points Calculation
+  static calculatePivotPoints(high: number, low: number, close: number): {
+    pp: number; // Pivot Point
+    r1: number; // Resistance 1
+    r2: number; // Resistance 2
+    r3: number; // Resistance 3
+    s1: number; // Support 1
+    s2: number; // Support 2
+    s3: number; // Support 3
+  } {
+    const pp = (high + low + close) / 3
+    const r1 = 2 * pp - low
+    const s1 = 2 * pp - high
+    const r2 = pp + (high - low)
+    const s2 = pp - (high - low)
+    const r3 = high + 2 * (pp - low)
+    const s3 = low - 2 * (high - pp)
+    
+    return { pp, r1, r2, r3, s1, s2, s3 }
+  }
+
+  // Fibonacci Retracements
+  static calculateFibonacciRetracements(swingHigh: number, swingLow: number): {
+    level0: number; // 0% (swing high)
+    level236: number; // 23.6%
+    level382: number; // 38.2%
+    level500: number; // 50%
+    level618: number; // 61.8%
+    level786: number; // 78.6%
+    level100: number; // 100% (swing low)
+  } {
+    const range = swingHigh - swingLow
+    
+    return {
+      level0: swingHigh,
+      level236: swingHigh - (range * 0.236),
+      level382: swingHigh - (range * 0.382),
+      level500: swingHigh - (range * 0.5),
+      level618: swingHigh - (range * 0.618),
+      level786: swingHigh - (range * 0.786),
+      level100: swingLow
+    }
+  }
+
+  // Horizontal Support/Resistance Detection
+  static findHorizontalLevels(high: number[], low: number[], close: number[], tolerance: number = 0.002): {
+    resistance: number[];
+    support: number[];
+  } {
+    const levels: { [key: number]: number } = {}
+    
+    // Group prices within tolerance
+    for (let i = 0; i < close.length; i++) {
+      const price = close[i]
+      const roundedPrice = Math.round(price / tolerance) * tolerance
+      
+      if (!levels[roundedPrice]) {
+        levels[roundedPrice] = 0
+      }
+      levels[roundedPrice]++
+    }
+    
+    // Find levels with multiple touches (at least 2)
+    const resistance: number[] = []
+    const support: number[] = []
+    
+    for (const [price, touches] of Object.entries(levels)) {
+      if (touches >= 2) {
+        const priceValue = parseFloat(price)
+        const currentPrice = close[close.length - 1]
+        
+        if (priceValue > currentPrice) {
+          resistance.push(priceValue)
+        } else {
+          support.push(priceValue)
+        }
+      }
+    }
+    
+    // Sort levels
+    resistance.sort((a, b) => a - b)
+    support.sort((a, b) => b - a)
+    
+    return { resistance, support }
+  }
+
+  // Check Support/Resistance conditions
+  static checkSupportResistanceConditions(currentPrice: number, support: number[], resistance: number[], tolerance: number = 0.01): {
+    nearSupport: boolean;
+    nearResistance: boolean;
+    atSupport: number | null;
+    atResistance: number | null;
+  } {
+    let nearSupport = false
+    let nearResistance = false
+    let atSupport: number | null = null
+    let atResistance: number | null = null
+    
+    // Check resistance levels
+    for (const level of resistance) {
+      const distance = Math.abs(currentPrice - level) / level
+      if (distance <= tolerance) {
+        nearResistance = true
+        atResistance = level
+        break
+      }
+    }
+    
+    // Check support levels
+    for (const level of support) {
+      const distance = Math.abs(currentPrice - level) / level
+      if (distance <= tolerance) {
+        nearSupport = true
+        atSupport = level
+        break
+      }
+    }
+    
+    return { nearSupport, nearResistance, atSupport, atResistance }
+  }
+
+  // Check Pivot Point conditions
+  static checkPivotPointConditions(currentPrice: number, pivotPoints: ReturnType<typeof TechnicalAnalysis.calculatePivotPoints>): {
+    abovePP: boolean;
+    nearR1: boolean;
+    nearR2: boolean;
+    nearR3: boolean;
+    nearS1: boolean;
+    nearS2: boolean;
+    nearS3: boolean;
+  } {
+    const tolerance = 0.005 // 0.5% tolerance
+    
+    return {
+      abovePP: currentPrice > pivotPoints.pp,
+      nearR1: Math.abs(currentPrice - pivotPoints.r1) / pivotPoints.r1 <= tolerance,
+      nearR2: Math.abs(currentPrice - pivotPoints.r2) / pivotPoints.r2 <= tolerance,
+      nearR3: Math.abs(currentPrice - pivotPoints.r3) / pivotPoints.r3 <= tolerance,
+      nearS1: Math.abs(currentPrice - pivotPoints.s1) / pivotPoints.s1 <= tolerance,
+      nearS2: Math.abs(currentPrice - pivotPoints.s2) / pivotPoints.s2 <= tolerance,
+      nearS3: Math.abs(currentPrice - pivotPoints.s3) / pivotPoints.s3 <= tolerance
+    }
+  }
 }
 
 // Example usage:
@@ -388,3 +603,5 @@ export class TechnicalAnalysis {
 // const sma20 = TechnicalAnalysis.calculateSMA(prices, 20)
 // const rsi = TechnicalAnalysis.calculateRSI(prices, 14)
 // const gap = TechnicalAnalysis.analyzeGap(110, 109)
+
+

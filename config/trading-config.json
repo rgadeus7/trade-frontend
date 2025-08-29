@@ -24,6 +24,14 @@
           "buySignal": "Low volatility suggests potential breakout",
           "sellSignal": "High volatility suggests potential reversal"
         },
+        "support-resistance": {
+          "description": "Support and resistance level analysis",
+          "indicators": ["swingHighLow", "pivotPoints", "fibonacciRetracements", "horizontalLevels"],
+          "statusValues": ["BULLISH", "BEARISH", "NO_BIAS"],
+          "buySignal": "Price near support levels",
+          "sellSignal": "Price near resistance levels"
+        },
+
         "volume": {
           "description": "Volume-based indicators for market analysis",
           "indicators": ["vwap", "volumeProfile"],
@@ -38,7 +46,7 @@
       "subcategories": {
         "price-action": {
           "description": "Price action patterns and movements",
-          "indicators": ["price-action", "openVsPreviousClose", "closeVsPreviousHigh"],
+          "indicators": ["price-action", "openVsPreviousClose", "closeVsPreviousHigh", "closeVsPreviousLow"],
           "statusValues": ["BULLISH", "BEARISH"],
           "buySignal": "Price action shows bullish patterns",
           "sellSignal": "Price action shows bearish patterns"
@@ -143,12 +151,12 @@
     },
     "atr": {
       "type": "volatility",
-      "periods": [14, 21],
-      "description": "Average True Range - volatility indicator",
+      "periods": [1, 5],
+      "description": "Average True Range - volatility indicator (primary period vs comparison period)",
       "configurable": {
-        "highVolatility": "ATR > 2x 20-period average",
-        "lowVolatility": "ATR < 0.5x 20-period average",
-        "normalVolatility": "ATR between 0.5x and 2x average"
+        "highVolatility": "ATR > 2x comparison period average",
+        "lowVolatility": "ATR < 0.5x comparison period average",
+        "normalVolatility": "ATR between 0.5x and 2x comparison period average"
       }
     },
     "adx": {
@@ -197,6 +205,16 @@
         "neutral": "Close = Previous High"
       }
     },
+    "closeVsPreviousLow": {
+      "type": "trend", 
+      "description": "Close vs Previous Low comparison",
+      "configurable": {
+        "bullish": "Close > Previous Low",
+        "bearish": "Close < Previous Low",
+        "neutral": "Close = Previous Low"
+      }
+    },
+
     "vwap": {
       "type": "volume",
       "description": "Volume Weighted Average Price - key support/resistance level",
@@ -222,24 +240,73 @@
     },
     "mmlOvershoot": {
       "type": "volatility",
-      "description": "Murrey Math Lines - Overshoot resistance levels",
+      "description": "Murrey Math Lines - Overshoot resistance levels (TradingView-style)",
       "configurable": {
-        "frame": 16,
+        "frame": 64,
         "multiplier": 1.5,
         "extremeOvershoot": "+2/8 and +3/8 levels (Imminent Bearish reversal)",
         "overshoot": "+1/8 level (Overshoot conditions)",
-        "lookbackPeriod": 24
+        "lookbackPeriod": 96,
+        "ignoreWicks": true,
+        "showHistoricalLevels": false
       }
     },
     "mmlOversold": {
       "type": "volatility",
-      "description": "Murrey Math Lines - Oversold support levels", 
+      "description": "Murrey Math Lines - Oversold support levels (TradingView-style)", 
       "configurable": {
-        "frame": 16,
+        "frame": 64,
         "multiplier": 1.5,
         "extremeOversold": "-2/8 and -3/8 levels (Imminent Bullish reversal)",
         "oversold": "-1/8 level (Oversold conditions)",
-        "lookbackPeriod": 24
+        "lookbackPeriod": 96,
+        "ignoreWicks": true,
+        "showHistoricalLevels": false
+      }
+    },
+    "swingHighLow": {
+      "type": "support-resistance",
+      "description": "Swing High/Low Detection - identifies local peaks and troughs using pivot-based algorithm",
+      "configurable": {
+        "leftLength": 4,
+        "rightLength": 2,
+        "minSwingStrength": 0.01,
+        "usePivotDetection": true,
+        "bullish": "Price near swing low support",
+        "bearish": "Price near swing high resistance",
+        "neutral": "Price between swing levels"
+      }
+    },
+    "pivotPoints": {
+      "type": "support-resistance",
+      "description": "Pivot Points - classic support/resistance levels for intraday trading",
+      "configurable": {
+        "tolerance": 0.005,
+        "bullish": "Price above pivot point",
+        "bearish": "Price below pivot point",
+        "nearResistance": "Price near R1, R2, or R3",
+        "nearSupport": "Price near S1, S2, or S3"
+      }
+    },
+    "fibonacciRetracements": {
+      "type": "support-resistance",
+      "description": "Fibonacci Retracements - based on swing highs and lows",
+      "configurable": {
+        "tolerance": 0.01,
+        "bullish": "Price near Fibonacci support levels",
+        "bearish": "Price near Fibonacci resistance levels",
+        "keyLevels": "23.6%, 38.2%, 50%, 61.8%, 78.6%"
+      }
+    },
+    "horizontalLevels": {
+      "type": "support-resistance",
+      "description": "Horizontal Support/Resistance - price levels tested multiple times",
+      "configurable": {
+        "tolerance": 0.002,
+        "minTouches": 2,
+        "bullish": "Price near horizontal support",
+        "bearish": "Price near horizontal resistance",
+        "neutral": "Price away from key levels"
       }
     }
   },
