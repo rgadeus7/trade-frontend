@@ -8,7 +8,6 @@ import {
   getRSIThresholds, 
   getBollingerBandsStrengthThreshold, 
   getPriceActionStrengthThreshold, 
-  getGapAnalysisStrengthThreshold,
   isTrendIndicator,
   isMomentumIndicator
 } from '../config/trading-config'
@@ -302,7 +301,7 @@ export default function TradingChecklist({ marketData }: TradingChecklistProps) 
           id: 'daily-gap-up',
           label: 'Gap Up from Yesterday',
           status: TechnicalAnalysis.analyzeGap(dailyPrice, yesterdayClose).isGapUp ? 'BULLISH' : 'BEARISH',
-          strength: TechnicalAnalysis.analyzeGap(dailyPrice, yesterdayClose).gapPercentage > getGapAnalysisStrengthThreshold() * 100 ? 'STRONG' : 'MODERATE',
+          strength: TechnicalAnalysis.analyzeGap(dailyPrice, yesterdayClose).gapPercentage > 0.5 ? 'STRONG' : 'MODERATE',
           description: `SPX: ${TechnicalAnalysis.analyzeGap(dailyPrice, yesterdayClose).isGapUp ? 'Gap Up' : 'No Gap'} | Size: ${TechnicalAnalysis.analyzeGap(dailyPrice, yesterdayClose).gapPercentage.toFixed(2)}%`
         }
       )
@@ -554,7 +553,7 @@ export default function TradingChecklist({ marketData }: TradingChecklistProps) 
           id: '2h-gap-up',
           label: '2H Gap Up from Yesterday',
           status: TechnicalAnalysis.analyzeGap(dailyPrice, yesterdayClose).isGapUp ? 'BULLISH' : 'BEARISH',
-          strength: TechnicalAnalysis.analyzeGap(dailyPrice, yesterdayClose).gapPercentage > getGapAnalysisStrengthThreshold() * 100 ? 'STRONG' : 'MODERATE',
+          strength: TechnicalAnalysis.analyzeGap(dailyPrice, yesterdayClose).gapPercentage > 0.5 ? 'STRONG' : 'MODERATE',
           description: `SPX: ${TechnicalAnalysis.analyzeGap(dailyPrice, yesterdayClose).isGapUp ? 'Gap Up' : 'No Gap'} | Size: ${TechnicalAnalysis.analyzeGap(dailyPrice, yesterdayClose).gapPercentage.toFixed(2)}%`
         }
       )
@@ -978,7 +977,7 @@ export default function TradingChecklist({ marketData }: TradingChecklistProps) 
   
             // Calculate overall totals by category - using all conditions from all timeframes
            const technicalConditions = allConditions.filter(c => 
-        c.id.includes('sma') || c.id.includes('rsi') || c.id.includes('bb') || c.id.includes('macd') || c.id.includes('atr') || c.id.includes('psar')
+        c.id.includes('sma') || c.id.includes('rsi') || c.id.includes('bb') || c.id.includes('atr') || c.id.includes('psar')
       )
      
      const priceActionConditions = allConditions.filter(c => 
@@ -987,11 +986,11 @@ export default function TradingChecklist({ marketData }: TradingChecklistProps) 
      
            // Technical subcategories
       const taDirectionalConditions = technicalConditions.filter(c => 
-        c.id.includes('sma') || c.id.includes('macd') || c.id.includes('adx') || c.id.includes('psar')
+        c.id.includes('sma') || c.id.includes('psar')
       )
       
       const taMomentumConditions = technicalConditions.filter(c => 
-        c.id.includes('rsi') || c.id.includes('stoch') || c.id.includes('williams')
+        c.id.includes('rsi')
       )
       
       const taVolatilityConditions = technicalConditions.filter(c => 
@@ -1044,7 +1043,7 @@ export default function TradingChecklist({ marketData }: TradingChecklistProps) 
          // Separate conditions by indicator type
            // Technical Indicators
       const technicalConditions = conditions.filter(c => 
-        c.id.includes('sma') || c.id.includes('rsi') || c.id.includes('bb') || c.id.includes('macd') || c.id.includes('atr') || c.id.includes('psar')
+        c.id.includes('sma') || c.id.includes('rsi') || c.id.includes('bb') || c.id.includes('atr') || c.id.includes('psar')
       )
      
      // Price Action Indicators
@@ -1054,11 +1053,11 @@ export default function TradingChecklist({ marketData }: TradingChecklistProps) 
      
            // Technical subcategories
       const directionalConditions = technicalConditions.filter(c => 
-        c.id.includes('sma') || c.id.includes('macd') || c.id.includes('adx') || c.id.includes('psar')
+        c.id.includes('sma') || c.id.includes('psar')
       )
       
       const momentumConditions = technicalConditions.filter(c => 
-        c.id.includes('rsi') || c.id.includes('stoch') || c.id.includes('williams')
+        c.id.includes('rsi')
       )
       
       const volatilityConditions = technicalConditions.filter(c => 
@@ -1172,7 +1171,7 @@ export default function TradingChecklist({ marketData }: TradingChecklistProps) 
       const statusMatch = selectedStatuses.has(condition.status)
       
              // Filter by category
-       const isTechnical = condition.id.includes('sma') || condition.id.includes('rsi') || condition.id.includes('bb') || condition.id.includes('macd') || condition.id.includes('atr') || condition.id.includes('psar')
+       const isTechnical = condition.id.includes('sma') || condition.id.includes('rsi') || condition.id.includes('bb') || condition.id.includes('atr') || condition.id.includes('psar')
       const isPriceAction = condition.id.includes('price') || condition.id.includes('gap') || condition.id.includes('yesterday')
       
       let categoryMatch = false

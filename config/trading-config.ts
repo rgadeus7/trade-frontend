@@ -210,14 +210,6 @@ export const getBollingerBandsConfig = () => {
   return tradingConfig.indicators.bollingerBands
 }
 
-export const getMACDConfig = () => {
-  return tradingConfig.indicators.macd
-}
-
-export const getStochConfig = () => {
-  return tradingConfig.indicators.stoch
-}
-
 export const getVWAPLookbackPeriod = (): number => {
   return tradingConfig.indicators.vwap.configurable.lookbackPeriod || 20
 }
@@ -351,10 +343,6 @@ export const getBollingerBandsStrengthThreshold = (): number => {
 
 export const getPriceActionStrengthThreshold = (): number => {
   return tradingConfig.indicators.priceAction.strengthThreshold || 0.01
-}
-
-export const getGapAnalysisStrengthThreshold = (): number => {
-  return tradingConfig.indicators.gapAnalysis.strengthThreshold || 0.01
 }
 
 // Support/Resistance helper functions

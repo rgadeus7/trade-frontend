@@ -12,8 +12,14 @@ export interface TimeframeData {
   change: number
   volume: number
   timestamp: string
+  // Dynamic SMA fields for all periods
+  sma: { [period: number]: number }
+  smaLow: { [period: number]: number }
+  // Legacy fields for backward compatibility
   sma89: number
+  sma200: number
   sma89Low: number
+  sma200Low: number
   historicalPrices: number[]
   historicalOHLC: {
     open: number[]
@@ -83,8 +89,14 @@ class TimeframeDataServiceImpl implements TimeframeDataService {
         change,
         volume: current.volume,
         timestamp: current.timestamp,
+        // Dynamic SMA fields for all periods
+        sma: indicators.sma || {},
+        smaLow: indicators.smaLow || {},
+        // Legacy fields for backward compatibility
         sma89: indicators.sma89 || indicators.sma2h || 0, // Use appropriate SMA based on timeframe
+        sma200: indicators.sma200 || 0, // Use 200 SMA for daily/weekly/monthly
         sma89Low: indicators.sma89Low || 0,
+        sma200Low: indicators.sma200Low || 0,
         historicalPrices: historicalData.map(d => d.close).reverse(),
         historicalOHLC,
         historicalVolume

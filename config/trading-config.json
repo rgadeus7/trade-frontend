@@ -31,7 +31,6 @@
           "buySignal": "Price near support levels",
           "sellSignal": "Price near resistance levels"
         },
-
         "volume": {
           "description": "Volume-based indicators for market analysis",
           "indicators": ["vwap", "volumeProfile"],
@@ -64,17 +63,6 @@
         "bullishThreshold": "Price > SMA",
         "bearishThreshold": "Price < SMA",
         "neutralThreshold": "Price within 0.5% of SMA"
-      }
-    },
-    "ema": {
-      "type": "trend",
-      "periods": [12, 26, 50, 89],
-      "strengthThreshold": 0.02,
-      "description": "Exponential Moving Average - trend direction indicator",
-      "configurable": {
-        "bullishThreshold": "Price > EMA",
-        "bearishThreshold": "Price < EMA",
-        "neutralThreshold": "Price within 0.5% of EMA"
       }
     },
     "rsi": {
@@ -110,45 +98,6 @@
         "squeeze": "Band width < 20% of middle band"
       }
     },
-    "macd": {
-      "type": "trend",
-      "fastPeriod": 12,
-      "slowPeriod": 26,
-      "signalPeriod": 9,
-      "description": "MACD - trend and momentum indicator",
-      "configurable": {
-        "bullish": "MACD > Signal Line",
-        "bearish": "MACD < Signal Line",
-        "strongBullish": "MACD > 0 and rising",
-        "strongBearish": "MACD < 0 and falling"
-      }
-    },
-    "stoch": {
-      "type": "momentum",
-      "kPeriod": 14,
-      "dPeriod": 3,
-      "description": "Stochastic Oscillator - momentum indicator",
-      "configurable": {
-        "overbought": {
-          "strong": 90,
-          "moderate": 80
-        },
-        "oversold": {
-          "strong": 10,
-          "moderate": 20
-        }
-      }
-    },
-    "volumeSma": {
-      "type": "volume",
-      "periods": [20, 50],
-      "description": "Volume Simple Moving Average",
-      "configurable": {
-        "highVolume": "Current volume > 1.5x SMA",
-        "lowVolume": "Current volume < 0.5x SMA",
-        "normalVolume": "Current volume between 0.5x and 1.5x SMA"
-      }
-    },
     "atr": {
       "type": "volatility",
       "periods": [1, 5],
@@ -159,16 +108,6 @@
         "normalVolatility": "ATR between 0.5x and 2x comparison period average"
       }
     },
-    "adx": {
-      "type": "trend",
-      "period": 14,
-      "description": "Average Directional Index - trend strength",
-      "configurable": {
-        "strongTrend": "ADX > 25",
-        "weakTrend": "ADX < 20",
-        "trending": "ADX > 20"
-      }
-    },
     "priceAction": {
       "type": "trend",
       "description": "Price action patterns and levels",
@@ -176,15 +115,6 @@
         "bullish": "Higher highs and higher lows",
         "bearish": "Lower highs and lower lows",
         "consolidation": "Sideways price action"
-      }
-    },
-    "gapAnalysis": {
-      "type": "trend",
-      "description": "Gap analysis between sessions",
-      "configurable": {
-        "gapUp": "Open > Previous close by > 0.5%",
-        "gapDown": "Open < Previous close by > 0.5%",
-        "noGap": "Open within 0.5% of previous close"
       }
     },
     "openVsPreviousClose": {
@@ -214,7 +144,6 @@
         "neutral": "Close = Previous Low"
       }
     },
-
     "vwap": {
       "type": "volume",
       "description": "Volume Weighted Average Price - key support/resistance level",
@@ -358,22 +287,22 @@
     "monthly": {
       "description": "Long-term trend analysis",
       "weight": 0.3,
-      "indicators": ["sma", "ema", "macd", "adx"]
+      "indicators": ["sma", "rsi", "bollingerBands"]
     },
     "weekly": {
       "description": "Medium-term trend analysis", 
       "weight": 0.25,
-      "indicators": ["sma", "ema", "rsi", "bollingerBands", "macd"]
+      "indicators": ["sma", "rsi", "bollingerBands"]
     },
     "daily": {
       "description": "Short-term trend analysis",
       "weight": 0.25,
-      "indicators": ["sma", "ema", "rsi", "bollingerBands", "macd", "volumeSma", "vwap"]
+      "indicators": ["sma", "rsi", "bollingerBands", "vwap"]
     },
     "hourly": {
       "description": "Intraday analysis",
       "weight": 0.2,
-      "indicators": ["sma", "rsi", "bollingerBands", "volumeSma", "vwap", "atr"]
+      "indicators": ["sma", "rsi", "bollingerBands", "vwap", "atr"]
     }
   },
   "riskManagement": {

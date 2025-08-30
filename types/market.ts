@@ -32,13 +32,19 @@ export interface MarketData {
     volume: number
     timestamp: string
   } | null
+  // Dynamic SMA fields for all periods
+  sma: { [period: number]: number }
+  smaLow: { [period: number]: number }
+  // Legacy fields for backward compatibility
   sma89: number
+  sma200: number
   ema89: number
   sma2h: number
   weeklySMA: number
   monthlySMA: number
-  // Add SMA low values
+  // Legacy SMA low values for backward compatibility
   sma89Low: number
+  sma200Low: number
   weeklySMALow: number
   monthlySMALow: number
   // Update historical data to include full OHLC

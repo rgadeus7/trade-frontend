@@ -3,6 +3,18 @@ import { NextRequest, NextResponse } from 'next/server'
 // Force dynamic rendering to avoid static generation issues with search params
 export const dynamic = 'force-dynamic'
 
+// Get SMA periods from trading config
+function getSMAPeriods(): number[] {
+  try {
+    // Import the config dynamically to avoid circular dependencies
+    const config = require('../../../config/trading-config.json')
+    return config.indicators.sma.periods || [20, 50, 89, 200]
+  } catch (error) {
+    console.warn('Could not load SMA periods from config, using defaults:', error)
+    return [20, 50, 89, 200]
+  }
+}
+
 // Trade Station API Integration for SPY, SPX, ES
 export async function GET(request: NextRequest) {
   try {
@@ -140,7 +152,21 @@ function transformTradeStationData(dailyData: any, hourlyData: any, symbol: stri
   
   // Calculate indicators from daily data
   const dailyClosingPrices = dailyBars.map((bar: any) => parseFloat(bar.Close))
-  const sma89 = calculateSMA(dailyClosingPrices, 89)
+  const dailyLowPrices = dailyBars.map((bar: any) => parseFloat(bar.Low))
+  const smaPeriods = getSMAPeriods()
+  
+  // Calculate SMA for all periods
+  const sma: { [period: number]: number } = {}
+  const smaLow: { [period: number]: number } = {}
+  
+  smaPeriods.forEach(period => {
+    sma[period] = calculateSMA(dailyClosingPrices, period)
+    smaLow[period] = calculateSMA(dailyLowPrices, period)
+  })
+  
+  // Legacy calculations for backward compatibility
+  const sma89 = sma[89] || calculateSMA(dailyClosingPrices, 89)
+  const sma200 = sma[200] || calculateSMA(dailyClosingPrices, 200)
   const ema89 = calculateEMA(dailyClosingPrices, 89)
   
   // Calculate 2-hour SMA (using 2-hour data with 89-period)
@@ -166,7 +192,16 @@ function transformTradeStationData(dailyData: any, hourlyData: any, symbol: stri
       volume: parseInt(latestHourlyBar.TotalVolume) || 0,
       timestamp: latestHourlyBar.TimeStamp || new Date().toISOString()
     },
+    // Dynamic SMA fields for all periods
+    sma: Object.fromEntries(
+      Object.entries(sma).map(([period, value]) => [period, parseFloat(value.toFixed(2))])
+    ),
+    smaLow: Object.fromEntries(
+      Object.entries(smaLow).map(([period, value]) => [period, parseFloat(value.toFixed(2))])
+    ),
+    // Legacy fields for backward compatibility
     sma89: parseFloat(sma89.toFixed(2)),
+    sma200: parseFloat(sma200.toFixed(2)),
     ema89: parseFloat(ema89.toFixed(2)),
     sma2h: parseFloat(sma2h.toFixed(2)) // 2-hour SMA
   }
@@ -231,7 +266,20 @@ function generateMockData(symbol: string) {
   const dailyChange = (Math.random() - 0.5) * 4 // ±2% change
   const hourlyChange = (Math.random() - 0.5) * 2 // ±1% change for hourly
   
-  const sma89 = dailyPrice * (1 + (Math.random() - 0.5) * 0.05) // SMA close to price
+  const smaPeriods = getSMAPeriods()
+  
+  // Generate dynamic SMA values for all periods
+  const sma: { [period: number]: number } = {}
+  const smaLow: { [period: number]: number } = {}
+  
+  smaPeriods.forEach(period => {
+    sma[period] = dailyPrice * (1 + (Math.random() - 0.5) * 0.05) // SMA close to price
+    smaLow[period] = dailyPrice * (1 + (Math.random() - 0.5) * 0.06) // SMA Low close to price
+  })
+  
+  // Legacy calculations for backward compatibility
+  const sma89 = sma[89] || dailyPrice * (1 + (Math.random() - 0.5) * 0.05)
+  const sma200 = sma[200] || dailyPrice * (1 + (Math.random() - 0.5) * 0.06)
   const ema89 = dailyPrice * (1 + (Math.random() - 0.5) * 0.03) // EMA close to price
   const sma2h = hourlyPrice * (1 + (Math.random() - 0.5) * 0.04) // 2-hour SMA close to hourly price
 
@@ -250,7 +298,16 @@ function generateMockData(symbol: string) {
       volume: Math.floor(Math.random() * 50000000),
       timestamp: new Date().toISOString()
     },
+    // Dynamic SMA fields for all periods
+    sma: Object.fromEntries(
+      Object.entries(sma).map(([period, value]) => [period, parseFloat(value.toFixed(2))])
+    ),
+    smaLow: Object.fromEntries(
+      Object.entries(smaLow).map(([period, value]) => [period, parseFloat(value.toFixed(2))])
+    ),
+    // Legacy fields for backward compatibility
     sma89: parseFloat(sma89.toFixed(2)),
+    sma200: parseFloat(sma200.toFixed(2)),
     ema89: parseFloat(ema89.toFixed(2)),
     sma2h: parseFloat(sma2h.toFixed(2)) // 2-hour SMA
   }

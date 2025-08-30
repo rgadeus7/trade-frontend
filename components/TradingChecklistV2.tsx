@@ -7,7 +7,6 @@ import {
   getSMAStrengthThreshold, 
   getBollingerBandsStrengthThreshold, 
   getPriceActionStrengthThreshold, 
-  getGapAnalysisStrengthThreshold,
   getIndicatorCategorization,
   getSubcategoriesByCategory,
   getVWAPLookbackPeriod,
@@ -56,8 +55,14 @@ interface ChecklistItem {
 interface TimeframeData {
   name: string
   price: number
-  sma: number
-  smaLow: number
+  // Dynamic SMA fields for all periods
+  sma: { [period: number]: number }
+  smaLow: { [period: number]: number }
+  // Legacy fields for backward compatibility
+  sma89: number
+  sma200: number
+  sma89Low: number
+  sma200Low: number
   historicalPrices?: number[]
   historicalOHLC?: { high: number[], low: number[], close: number[], open: number[] }
   historicalVolume?: number[]
@@ -185,6 +190,74 @@ function SummaryModal({ isOpen, onClose, allConditions, selectedStatus }: Summar
 // ===== INDICATOR DEFINITIONS =====
 // Each indicator is defined once with its logic and parameters
 
+// Get SMA periods from trading config
+function getSMAPeriods(): number[] {
+  try {
+    // Import the config dynamically to avoid circular dependencies
+    const config = require('../config/trading-config.json')
+    return config.indicators.sma.periods || [20, 50, 89, 200]
+  } catch (error) {
+    console.warn('Could not load SMA periods from config, using defaults:', error)
+    return [20, 50, 89, 200]
+  }
+}
+
+// Generate dynamic SMA indicators for all periods
+function generateSMAIndicators() {
+  const smaPeriods = getSMAPeriods()
+  const indicators: { [key: string]: any } = {}
+  
+  smaPeriods.forEach(period => {
+    // SMA Close indicators
+    indicators[`sma${period}`] = {
+      id: `sma-${period}`,
+      label: `Close > ${period} SMA`,
+      getCategory: () => getIndicatorCategorization('sma') || { category: 'technical', subcategory: 'directional' },
+      calculate: (timeframe: TimeframeData): ChecklistItem | null => {
+        if (!timeframe.sma || !timeframe.sma[period]) return null
+        
+        const status = timeframe.price > timeframe.sma[period] ? 'BULLISH' : 'BEARISH'
+        const strength = Math.abs(timeframe.price - timeframe.sma[period]) / timeframe.sma[period] > getSMAStrengthThreshold() ? 'STRONG' : 'MODERATE'
+        
+        return {
+          id: `${timeframe.name}-sma-${period}`,
+          label: `${timeframe.name} Close > ${timeframe.name} ${period} SMA`,
+          status,
+          strength,
+          description: `SPX: $${timeframe.price.toFixed(2)} | ${period} SMA: $${timeframe.sma[period].toFixed(2)}`,
+          category: indicators[`sma${period}`].getCategory().category,
+          subcategory: indicators[`sma${period}`].getCategory().subcategory
+        }
+      }
+    }
+    
+    // SMA Low indicators
+    indicators[`sma${period}Low`] = {
+      id: `sma-${period}-low`,
+      label: `Close > ${period} SMA Low`,
+      getCategory: () => getIndicatorCategorization('sma-low') || { category: 'technical', subcategory: 'directional' },
+      calculate: (timeframe: TimeframeData): ChecklistItem | null => {
+        if (!timeframe.smaLow || !timeframe.smaLow[period]) return null
+        
+        const status = timeframe.price > timeframe.smaLow[period] ? 'BULLISH' : 'BEARISH'
+        const strength = Math.abs(timeframe.price - timeframe.smaLow[period]) / timeframe.smaLow[period] > getSMAStrengthThreshold() ? 'STRONG' : 'MODERATE'
+        
+        return {
+          id: `${timeframe.name}-sma-${period}-low`,
+          label: `${timeframe.name} Close > ${timeframe.name} ${period} SMA Low`,
+          status,
+          strength,
+          description: `SPX: $${timeframe.price.toFixed(2)} | ${period} SMA Low: $${timeframe.smaLow[period].toFixed(2)}`,
+          category: indicators[`sma${period}Low`].getCategory().category,
+          subcategory: indicators[`sma${period}Low`].getCategory().subcategory
+        }
+      }
+    }
+  })
+  
+  return indicators
+}
+
 const INDICATORS: {
   [key: string]: {
     id: string
@@ -193,50 +266,8 @@ const INDICATORS: {
     calculate: (timeframe: TimeframeData, ...args: any[]) => ChecklistItem | ChecklistItem[] | null
   }
 } = {
-  // SMA-based indicators
-  sma: {
-    id: 'sma',
-    label: 'Close > 89 SMA',
-    getCategory: () => getIndicatorCategorization('sma') || { category: 'technical', subcategory: 'directional' },
-    calculate: (timeframe: TimeframeData): ChecklistItem | null => {
-      if (!timeframe.sma) return null
-      
-      const status = timeframe.price > timeframe.sma ? 'BULLISH' : 'BEARISH'
-      const strength = Math.abs(timeframe.price - timeframe.sma) / timeframe.sma > getSMAStrengthThreshold() ? 'STRONG' : 'MODERATE'
-      
-      return {
-        id: `${timeframe.name}-sma`,
-        label: `${timeframe.name} Close > ${timeframe.name} 89 SMA`,
-        status,
-        strength,
-        description: `SPX: $${timeframe.price.toFixed(2)} | 89 SMA: $${timeframe.sma.toFixed(2)}`,
-        category: INDICATORS.sma.getCategory().category,
-        subcategory: INDICATORS.sma.getCategory().subcategory
-      }
-    }
-  },
-
-  smaLow: {
-    id: 'sma-low',
-    label: 'Close > 89 SMA Low',
-    getCategory: () => getIndicatorCategorization('sma-low') || { category: 'technical', subcategory: 'directional' },
-    calculate: (timeframe: TimeframeData): ChecklistItem | null => {
-      if (!timeframe.smaLow) return null
-      
-      const status = timeframe.price > timeframe.smaLow ? 'BULLISH' : 'BEARISH'
-      const strength = Math.abs(timeframe.price - timeframe.smaLow) / timeframe.smaLow > getSMAStrengthThreshold() ? 'STRONG' : 'MODERATE'
-      
-      return {
-        id: `${timeframe.name}-sma-low`,
-        label: `${timeframe.name} Close > ${timeframe.name} 89 SMA Low`,
-        status,
-        strength,
-        description: `SPX: $${timeframe.price.toFixed(2)} | 89 SMA Low: $${timeframe.smaLow.toFixed(2)}`,
-        category: INDICATORS.smaLow.getCategory().category,
-        subcategory: INDICATORS.smaLow.getCategory().subcategory
-      }
-    }
-  },
+  // Dynamic SMA-based indicators
+  ...generateSMAIndicators(),
 
   // RSI indicator
   rsi: {
@@ -630,7 +661,7 @@ const INDICATORS: {
           id: `${timeframe.name}-gap`,
           label: `${timeframe.name} Gap Analysis`,
           status: gapAnalysis.isGapUp ? 'BULLISH' : 'BEARISH',
-          strength: gapAnalysis.gapPercentage > getGapAnalysisStrengthThreshold() * 100 ? 'STRONG' : 'MODERATE',
+          strength: gapAnalysis.gapPercentage > 0.5 ? 'STRONG' : 'MODERATE',
           description: `Open: $${currentOpen.toFixed(2)} | Previous Close: $${timeframe.previousClose.toFixed(2)} | ${gapAnalysis.isGapUp ? 'Gap Up' : gapAnalysis.isGapDown ? 'Gap Down' : 'No Gap'} | Size: ${gapAnalysis.gapPercentage.toFixed(2)}%`,
           category: INDICATORS.priceAction.getCategory().category,
           subcategory: INDICATORS.priceAction.getCategory().subcategory
@@ -1022,17 +1053,23 @@ const TIMEFRAMES = [
       const data = serviceData['daily']
       if (!data) return null
       
-             return {
-         name: 'Daily',
-         price: data.currentPrice,
-         sma: data.sma89,
-         smaLow: data.sma89Low,
-         historicalPrices: data.historicalPrices,
-         historicalOHLC: data.historicalOHLC,
-         historicalVolume: data.historicalVolume,
-         previousClose: data.previousPrice,
-         previousHigh: data.historicalOHLC.high[data.historicalOHLC.high.length - 2] || data.previousPrice
-       }
+                   return {
+        name: 'Daily',
+        price: data.currentPrice,
+        // Dynamic SMA fields for all periods
+        sma: data.sma || {},
+        smaLow: data.smaLow || {},
+        // Legacy fields for backward compatibility
+        sma89: data.sma89,
+        sma200: data.sma200,
+        sma89Low: data.sma89Low,
+        sma200Low: data.sma200Low,
+        historicalPrices: data.historicalPrices,
+        historicalOHLC: data.historicalOHLC,
+        historicalVolume: data.historicalVolume,
+        previousClose: data.previousPrice,
+        previousHigh: data.historicalOHLC.high[data.historicalOHLC.high.length - 2] || data.previousPrice
+      }
     }
   },
   {
@@ -1042,17 +1079,23 @@ const TIMEFRAMES = [
       const data = serviceData['2hour']
       if (!data) return null
       
-             return {
-         name: '2-Hour',
-         price: data.currentPrice,
-         sma: data.sma89,
-         smaLow: data.sma89Low,
-         historicalPrices: data.historicalPrices,
-         historicalOHLC: data.historicalOHLC,
-         historicalVolume: data.historicalVolume,
-         previousClose: data.previousPrice,
-         previousHigh: data.historicalOHLC.high[data.historicalOHLC.high.length - 2] || data.previousPrice
-       }
+                   return {
+        name: '2-Hour',
+        price: data.currentPrice,
+        // Dynamic SMA fields for all periods
+        sma: data.sma || {},
+        smaLow: data.smaLow || {},
+        // Legacy fields for backward compatibility
+        sma89: data.sma89,
+        sma200: data.sma200,
+        sma89Low: data.sma89Low,
+        sma200Low: data.sma200Low,
+        historicalPrices: data.historicalPrices,
+        historicalOHLC: data.historicalOHLC,
+        historicalVolume: data.historicalVolume,
+        previousClose: data.previousPrice,
+        previousHigh: data.historicalOHLC.high[data.historicalOHLC.high.length - 2] || data.previousPrice
+      }
     }
   },
   {
@@ -1062,17 +1105,23 @@ const TIMEFRAMES = [
       const data = serviceData['weekly']
       if (!data) return null
       
-             return {
-         name: 'Weekly',
-         price: data.currentPrice,
-         sma: data.sma89,
-         smaLow: data.sma89Low,
-         historicalPrices: data.historicalPrices,
-         historicalOHLC: data.historicalOHLC,
-         historicalVolume: data.historicalVolume,
-         previousClose: data.previousPrice,
-         previousHigh: data.historicalOHLC.high[data.historicalOHLC.high.length - 2] || data.previousPrice
-       }
+                   return {
+        name: 'Weekly',
+        price: data.currentPrice,
+        // Dynamic SMA fields for all periods
+        sma: data.sma || {},
+        smaLow: data.smaLow || {},
+        // Legacy fields for backward compatibility
+        sma89: data.sma89,
+        sma200: data.sma200,
+        sma89Low: data.sma89Low,
+        sma200Low: data.sma200Low,
+        historicalPrices: data.historicalPrices,
+        historicalOHLC: data.historicalOHLC,
+        historicalVolume: data.historicalVolume,
+        previousClose: data.previousPrice,
+        previousHigh: data.historicalOHLC.high[data.historicalOHLC.high.length - 2] || data.previousPrice
+      }
     }
   },
   {
@@ -1082,17 +1131,23 @@ const TIMEFRAMES = [
       const data = serviceData['monthly']
       if (!data) return null
       
-             return {
-         name: 'Monthly',
-         price: data.currentPrice,
-         sma: data.sma89,
-         smaLow: data.sma89Low,
-         historicalPrices: data.historicalPrices,
-         historicalOHLC: data.historicalOHLC,
-         historicalVolume: data.historicalVolume,
-         previousClose: data.previousPrice,
-         previousHigh: data.historicalOHLC.high[data.historicalOHLC.high.length - 2] || data.previousPrice
-       }
+                   return {
+        name: 'Monthly',
+        price: data.currentPrice,
+        // Dynamic SMA fields for all periods
+        sma: data.sma || {},
+        smaLow: data.smaLow || {},
+        // Legacy fields for backward compatibility
+        sma89: data.sma89,
+        sma200: data.sma200,
+        sma89Low: data.sma89Low,
+        sma200Low: data.sma200Low,
+        historicalPrices: data.historicalPrices,
+        historicalOHLC: data.historicalOHLC,
+        historicalVolume: data.historicalVolume,
+        previousClose: data.previousPrice,
+        previousHigh: data.historicalOHLC.high[data.historicalOHLC.high.length - 2] || data.previousPrice
+      }
     }
   }
 ]
