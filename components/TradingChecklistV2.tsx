@@ -37,6 +37,7 @@ import {
 import { MarketData } from '../types/market'
 import { timeframeDataService, type TimeframeData as ServiceTimeframeData } from '../lib/timeframeDataService'
 import IndicatorVisualization from './IndicatorVisualization'
+import KeyLevelsSummary from './KeyLevelsSummary'
 
 interface TradingChecklistProps {
   marketData: MarketData[]
@@ -734,18 +735,9 @@ const INDICATORS: {
       label: 'Swing High/Low Analysis',
       getCategory: () => getIndicatorCategorization('swingHighLow') || { category: 'technical', subcategory: 'support-resistance' },
       calculate: (timeframe: TimeframeData): ChecklistItem | null => {
-        // Get pivot detection parameters
-        let leftLength = getSwingHighLowLeftLength()
-        let rightLength = getSwingHighLowRightLength()
-        
-        // Adjust lengths based on timeframe for better results
-        if (timeframe.name.toLowerCase() === 'monthly') {
-          leftLength = Math.max(leftLength, 6) // At least 6 months for monthly data
-          rightLength = Math.max(rightLength, 6)
-        } else if (timeframe.name.toLowerCase() === 'weekly') {
-          leftLength = Math.max(leftLength, 8) // At least 8 weeks for weekly data
-          rightLength = Math.max(rightLength, 8)
-        }
+        // Get pivot detection parameters - same for all timeframes
+        const leftLength = getSwingHighLowLeftLength()
+        const rightLength = getSwingHighLowRightLength()
         
         if (!timeframe.historicalOHLC || timeframe.historicalOHLC.high.length < leftLength + rightLength + 1) return null
         
@@ -779,20 +771,22 @@ const INDICATORS: {
           const swingRange = recentSwingHigh.value - recentSwingLow.value
           const rangePercentage = (swingRange / recentSwingLow.value) * 100
           
-          if (distanceToLow <= minStrength) {
-            status = 'BULLISH'
-            strength = distanceToLow <= minStrength / 2 ? 'STRONG' : 'MODERATE'
-            description = `Near Swing Low: $${recentSwingLow.value.toFixed(2)} | Distance: ${(distanceToLow * 100).toFixed(2)}% | Range: ${rangePercentage.toFixed(1)}%`
-          } else if (distanceToHigh <= minStrength) {
-            status = 'BEARISH'
-            strength = distanceToHigh <= minStrength / 2 ? 'STRONG' : 'MODERATE'
-            description = `Near Swing High: $${recentSwingHigh.value.toFixed(2)} | Distance: ${(distanceToHigh * 100).toFixed(2)}% | Range: ${rangePercentage.toFixed(1)}%`
-          } else {
-            status = 'NO_BIAS'
-            strength = 'WEAK'
-            const positionInRange = ((currentPrice - recentSwingLow.value) / swingRange) * 100
-            description = `Between Swings | High: $${recentSwingHigh.value.toFixed(2)} | Low: $${recentSwingLow.value.toFixed(2)} | Position: ${positionInRange.toFixed(1)}%`
-          }
+                     if (distanceToLow <= minStrength) {
+             status = 'BULLISH'
+             strength = distanceToLow <= minStrength / 2 ? 'STRONG' : 'MODERATE'
+             const positionInRange = ((currentPrice - recentSwingLow.value) / swingRange) * 100
+             description = `High: $${recentSwingHigh.value.toFixed(2)} | Low: $${recentSwingLow.value.toFixed(2)} | Near Swing Low Support: $${recentSwingLow.value.toFixed(2)} | Distance: ${(distanceToLow * 100).toFixed(2)}% | Position: ${positionInRange.toFixed(1)}%`
+           } else if (distanceToHigh <= minStrength) {
+             status = 'BEARISH'
+             strength = distanceToHigh <= minStrength / 2 ? 'STRONG' : 'MODERATE'
+             const positionInRange = ((currentPrice - recentSwingLow.value) / swingRange) * 100
+             description = `High: $${recentSwingHigh.value.toFixed(2)} | Low: $${recentSwingLow.value.toFixed(2)} | Near Swing High Resistance: $${recentSwingHigh.value.toFixed(2)} | Distance: ${(distanceToHigh * 100).toFixed(2)}% | Position: ${positionInRange.toFixed(1)}%`
+           } else {
+             status = 'NO_BIAS'
+             strength = 'WEAK'
+             const positionInRange = ((currentPrice - recentSwingLow.value) / swingRange) * 100
+             description = `High: $${recentSwingHigh.value.toFixed(2)} | Low: $${recentSwingLow.value.toFixed(2)} | Between Swings | Position: ${positionInRange.toFixed(1)}%`
+           }
         } else {
           status = 'NO_BIAS'
           strength = 'WEAK'
@@ -871,6 +865,7 @@ const INDICATORS: {
       label: 'Fibonacci Retracements',
       getCategory: () => getIndicatorCategorization('fibonacciRetracements') || { category: 'technical', subcategory: 'support-resistance' },
       calculate: (timeframe: TimeframeData): ChecklistItem | null => {
+        // Get pivot detection parameters - same for all timeframes
         const leftLength = getSwingHighLowLeftLength()
         const rightLength = getSwingHighLowRightLength()
         if (!timeframe.historicalOHLC || timeframe.historicalOHLC.high.length < leftLength + rightLength + 1) return null
@@ -921,20 +916,20 @@ const INDICATORS: {
           }
         }
         
-        if (nearestLevel) {
-          if (currentPrice > nearestLevel.value) {
-            status = 'BULLISH'
-            strength = minDistance <= tolerance / 2 ? 'STRONG' : 'MODERATE'
+                 if (nearestLevel) {
+           if (currentPrice > nearestLevel.value) {
+             status = 'BULLISH'
+             strength = minDistance <= tolerance / 2 ? 'STRONG' : 'MODERATE'
+           } else {
+             status = 'BEARISH'
+             strength = minDistance <= tolerance / 2 ? 'STRONG' : 'MODERATE'
+           }
+                       description = `Near ${nearestLevel.name}: $${nearestLevel.value.toFixed(2)} | All Levels: 0%($${fibLevels.level0.toFixed(2)}) 23.6%($${fibLevels.level236.toFixed(2)}) 38.2%($${fibLevels.level382.toFixed(2)}) 50%($${fibLevels.level500.toFixed(2)}) 61.8%($${fibLevels.level618.toFixed(2)}) 78.6%($${fibLevels.level786.toFixed(2)}) 100%($${fibLevels.level100.toFixed(2)})`
           } else {
-            status = 'BEARISH'
-            strength = minDistance <= tolerance / 2 ? 'STRONG' : 'MODERATE'
-          }
-          description = `Near ${nearestLevel.name}: $${nearestLevel.value.toFixed(2)} | Swing High: $${swingHigh.toFixed(2)} | Swing Low: $${swingLow.toFixed(2)}`
-        } else {
-          status = 'NO_BIAS'
-          strength = 'WEAK'
-          description = `Between Fib Levels | High: $${swingHigh.toFixed(2)} | Low: $${swingLow.toFixed(2)}`
-        }
+            status = 'NO_BIAS'
+            strength = 'WEAK'
+            description = `Between Fib Levels | All Levels: 0%($${fibLevels.level0.toFixed(2)}) 23.6%($${fibLevels.level236.toFixed(2)}) 38.2%($${fibLevels.level382.toFixed(2)}) 50%($${fibLevels.level500.toFixed(2)}) 61.8%($${fibLevels.level618.toFixed(2)}) 78.6%($${fibLevels.level786.toFixed(2)}) 100%($${fibLevels.level100.toFixed(2)})`
+         }
         
         return {
           id: `${timeframe.name}-fibonacci`,
@@ -1505,8 +1500,14 @@ export default function TradingChecklistV2({ marketData }: TradingChecklistProps
            selectedStatus={selectedStatus}
          />
 
-        {/* Indicator Visualization */}
-        <IndicatorVisualization allConditions={allConditions} />
-      </div>
-    )
-  }
+                 {/* Key Levels Summary */}
+         <KeyLevelsSummary 
+           allConditions={allConditions} 
+           currentPrice={timeframeData.daily?.currentPrice || 0} 
+         />
+
+         {/* Indicator Visualization */}
+         <IndicatorVisualization allConditions={allConditions} />
+       </div>
+     )
+   }
