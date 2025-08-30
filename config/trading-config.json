@@ -88,7 +88,7 @@
     },
     "bollingerBands": {
       "type": "volatility",
-      "periods": [20, 50, 89],
+      "periods": [20, 50, 89,200],
       "stdDev": 2,
       "description": "Bollinger Bands - volatility and trend indicator",
       "configurable": {

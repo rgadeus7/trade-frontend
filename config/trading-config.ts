@@ -210,6 +210,10 @@ export const getBollingerBandsConfig = () => {
   return tradingConfig.indicators.bollingerBands
 }
 
+export const getBollingerBandsPeriods = (): number[] => {
+  return tradingConfig.indicators.bollingerBands.periods || [20]
+}
+
 export const getVWAPLookbackPeriod = (): number => {
   return tradingConfig.indicators.vwap.configurable.lookbackPeriod || 20
 }

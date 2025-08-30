@@ -31,6 +31,21 @@ export default function KeyLevelsSummary({ allConditions, currentPrice }: KeyLev
   const extractKeyLevels = (): KeyLevel[] => {
     const levels: KeyLevel[] = []
     
+    // Debug: Log all conditions to see what we're working with
+    console.log('KeyLevelsSummary - All conditions:', allConditions.length)
+    console.log('KeyLevelsSummary - Current price:', currentPrice)
+    console.log('KeyLevelsSummary - Fibonacci conditions:', allConditions.filter(c => c.label.includes('Fibonacci')))
+    
+    // Debug: Log all Fibonacci conditions with their details
+    allConditions.filter(c => c.label.includes('Fibonacci')).forEach(fib => {
+      console.log('KeyLevelsSummary - Fibonacci condition:', {
+        label: fib.label,
+        description: fib.description,
+        status: fib.status,
+        strength: fib.strength
+      })
+    })
+    
     allConditions.forEach(condition => {
       // Include support/resistance indicators, Bollinger Bands, MML, and SMA indicators for key levels
       if ((condition.category === 'technical' && condition.subcategory === 'support-resistance') ||
@@ -52,16 +67,27 @@ export default function KeyLevelsSummary({ allConditions, currentPrice }: KeyLev
               prices.push(parseFloat(swingMatch[2].replace(',', ''))) // Low
             }
           } else if (indicatorType.includes('Fibonacci')) {
-            // For Fibonacci - extract the specific level mentioned (e.g., "Near 23.6%: $6447.02")
+            // For Fibonacci - extract all levels regardless of distance
+            console.log('KeyLevelsSummary - Processing Fibonacci:', indicatorType, text)
+            
+            // Check for "Near" format first
             const nearLevelMatch = text.match(/Near (\d+\.?\d*%): \$([\d,]+\.\d+)/)
             if (nearLevelMatch) {
+              console.log('KeyLevelsSummary - Found Fibonacci level (Near):', nearLevelMatch[1], nearLevelMatch[2])
               prices.push(parseFloat(nearLevelMatch[2].replace(',', '')))
             } else {
-              // If not near any level, extract the 0% and 100% levels (swing high/low)
-              const allLevelsMatch = text.match(/0%\(\$([\d,]+\.\d+)\) .* 100%\(\$([\d,]+\.\d+)\)/)
-              if (allLevelsMatch) {
-                prices.push(parseFloat(allLevelsMatch[1].replace(',', ''))) // 0% (swing low)
-                prices.push(parseFloat(allLevelsMatch[2].replace(',', ''))) // 100% (swing high)
+              // Check for "At" format (when not near but still want to include)
+              const atLevelMatch = text.match(/At (\d+\.?\d*%): \$([\d,]+\.\d+)/)
+              if (atLevelMatch) {
+                console.log('KeyLevelsSummary - Found Fibonacci level (At):', atLevelMatch[1], atLevelMatch[2])
+                prices.push(parseFloat(atLevelMatch[2].replace(',', '')))
+              } else {
+                // Fallback: extract the 0% and 100% levels (swing high/low)
+                const allLevelsMatch = text.match(/0%\(\$([\d,]+\.\d+)\) .* 100%\(\$([\d,]+\.\d+)\)/)
+                if (allLevelsMatch) {
+                  prices.push(parseFloat(allLevelsMatch[1].replace(',', ''))) // 0% (swing low)
+                  prices.push(parseFloat(allLevelsMatch[2].replace(',', ''))) // 100% (swing high)
+                }
               }
             }
           } else if (indicatorType.includes('Pivot')) {
@@ -186,6 +212,21 @@ export default function KeyLevelsSummary({ allConditions, currentPrice }: KeyLev
   }
   
   const allLevels = extractKeyLevels()
+  
+  // Debug: Log extracted levels
+  console.log('KeyLevelsSummary - All extracted levels:', allLevels.length)
+  console.log('KeyLevelsSummary - Fibonacci levels:', allLevels.filter(l => l.source.includes('Fib')))
+  
+  // Debug: Log all extracted levels with details
+  allLevels.forEach(level => {
+    console.log('KeyLevelsSummary - Extracted level:', {
+      price: level.price,
+      type: level.type,
+      source: level.source,
+      timeframe: level.timeframe,
+      distance: level.distance
+    })
+  })
   
   // Filter levels by selected timeframes
   const filteredLevels = allLevels.filter(level => selectedTimeframes.has(level.timeframe))

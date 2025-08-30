@@ -6,6 +6,7 @@ import { TechnicalAnalysis } from '../lib/technicalAnalysis'
 import { 
   getSMAStrengthThreshold, 
   getBollingerBandsStrengthThreshold, 
+  getBollingerBandsPeriods,
   getPriceActionStrengthThreshold, 
   getIndicatorCategorization,
   getSubcategoriesByCategory,
@@ -895,11 +896,11 @@ const INDICATORS: {
       id: 'fibonacci-retracements',
       label: 'Fibonacci Retracements',
       getCategory: () => getIndicatorCategorization('fibonacciRetracements') || { category: 'technical', subcategory: 'support-resistance' },
-      calculate: (timeframe: TimeframeData): ChecklistItem | null => {
+      calculate: (timeframe: TimeframeData): ChecklistItem[] => {
         // Get pivot detection parameters - same for all timeframes
         const leftLength = getSwingHighLowLeftLength()
         const rightLength = getSwingHighLowRightLength()
-        if (!timeframe.historicalOHLC || timeframe.historicalOHLC.high.length < leftLength + rightLength + 1) return null
+        if (!timeframe.historicalOHLC || timeframe.historicalOHLC.high.length < leftLength + rightLength + 1) return []
         
         const { high, low } = timeframe.historicalOHLC
         // Use pivot-based detection (TradingView-style)
@@ -911,7 +912,16 @@ const INDICATORS: {
           ? TechnicalAnalysis.findPivotLows(low, leftLength, rightLength)
           : TechnicalAnalysis.findPivotLows(low, leftLength, rightLength) // Default to pivot detection
         
-        if (swingHighs.length === 0 || swingLows.length === 0) return null
+        // Debug: Log swing detection results
+        console.log(`TradingChecklistV2 - ${timeframe.name} Swing detection:`, {
+          swingHighsCount: swingHighs.length,
+          swingLowsCount: swingLows.length,
+          leftLength,
+          rightLength,
+          dataLength: timeframe.historicalOHLC.high.length
+        })
+        
+        if (swingHighs.length === 0 || swingLows.length === 0) return []
         
         // Use the most recent swing high and low
         const swingHigh = swingHighs[swingHighs.length - 1].value
@@ -921,56 +931,63 @@ const INDICATORS: {
         const currentPrice = timeframe.price
         const tolerance = getFibonacciTolerance()
         
-        let status: 'BULLISH' | 'BEARISH' | 'NO_BIAS'
-        let strength: 'STRONG' | 'MODERATE' | 'WEAK'
-        let description = ''
+        // Debug: Log Fibonacci calculation details
+        console.log(`TradingChecklistV2 - ${timeframe.name} Fibonacci calculation:`, {
+          swingHigh,
+          swingLow,
+          currentPrice,
+          tolerance,
+          fibLevels
+        })
         
-        // Check if price is near any Fibonacci level
-        const levels = [
-          { name: '0%', value: fibLevels.level0 },
-          { name: '23.6%', value: fibLevels.level236 },
-          { name: '38.2%', value: fibLevels.level382 },
-          { name: '50%', value: fibLevels.level500 },
-          { name: '61.8%', value: fibLevels.level618 },
-          { name: '78.6%', value: fibLevels.level786 },
-          { name: '100%', value: fibLevels.level100 }
-        ]
+                 // Define Fibonacci retracement levels (excluding 0% and 100% as they're the swing points)
+         const levels = [
+           { name: '23.6%', value: fibLevels.level236, key: 'level236' },
+           { name: '38.2%', value: fibLevels.level382, key: 'level382' },
+           { name: '50%', value: fibLevels.level500, key: 'level500' },
+           { name: '61.8%', value: fibLevels.level618, key: 'level618' },
+           { name: '78.6%', value: fibLevels.level786, key: 'level786' }
+         ]
         
-        let nearestLevel = null
-        let minDistance = Infinity
+        const items: ChecklistItem[] = []
         
-        for (const level of levels) {
+        // Create a separate item for each Fibonacci level
+        levels.forEach(level => {
           const distance = Math.abs(currentPrice - level.value) / level.value
-          if (distance <= tolerance && distance < minDistance) {
-            nearestLevel = level
-            minDistance = distance
-          }
-        }
-        
-                 if (nearestLevel) {
-           if (currentPrice > nearestLevel.value) {
-             status = 'BULLISH'
-             strength = minDistance <= tolerance / 2 ? 'STRONG' : 'MODERATE'
-           } else {
-             status = 'BEARISH'
-             strength = minDistance <= tolerance / 2 ? 'STRONG' : 'MODERATE'
-           }
-                       description = `Near ${nearestLevel.name}: $${nearestLevel.value.toFixed(2)} | All Levels: 0%($${fibLevels.level0.toFixed(2)}) 23.6%($${fibLevels.level236.toFixed(2)}) 38.2%($${fibLevels.level382.toFixed(2)}) 50%($${fibLevels.level500.toFixed(2)}) 61.8%($${fibLevels.level618.toFixed(2)}) 78.6%($${fibLevels.level786.toFixed(2)}) 100%($${fibLevels.level100.toFixed(2)})`
+          let status: 'BULLISH' | 'BEARISH' | 'NO_BIAS'
+          let strength: 'STRONG' | 'MODERATE' | 'WEAK'
+          let description = ''
+          
+          if (distance <= tolerance) {
+            if (currentPrice > level.value) {
+              status = 'BULLISH'
+              strength = distance <= tolerance / 2 ? 'STRONG' : 'MODERATE'
+            } else {
+              status = 'BEARISH'
+              strength = distance <= tolerance / 2 ? 'STRONG' : 'MODERATE'
+            }
+            description = `Near ${level.name}: $${level.value.toFixed(2)} | Distance: ${(distance * 100).toFixed(2)}%`
           } else {
             status = 'NO_BIAS'
             strength = 'WEAK'
-            description = `Between Fib Levels | All Levels: 0%($${fibLevels.level0.toFixed(2)}) 23.6%($${fibLevels.level236.toFixed(2)}) 38.2%($${fibLevels.level382.toFixed(2)}) 50%($${fibLevels.level500.toFixed(2)}) 61.8%($${fibLevels.level618.toFixed(2)}) 78.6%($${fibLevels.level786.toFixed(2)}) 100%($${fibLevels.level100.toFixed(2)})`
-         }
+            description = `At ${level.name}: $${level.value.toFixed(2)} | Distance: ${(distance * 100).toFixed(2)}%`
+          }
+          
+          items.push({
+            id: `${timeframe.name}-fibonacci-${level.key}`,
+            label: `${timeframe.name} Fibonacci ${level.name}`,
+            status,
+            strength,
+            description,
+            category: INDICATORS.fibonacciRetracements.getCategory().category,
+            subcategory: INDICATORS.fibonacciRetracements.getCategory().subcategory
+          })
+        })
         
-        return {
-          id: `${timeframe.name}-fibonacci`,
-          label: `${timeframe.name} Fibonacci`,
-          status,
-          strength,
-          description,
-          category: INDICATORS.fibonacciRetracements.getCategory().category,
-          subcategory: INDICATORS.fibonacciRetracements.getCategory().subcategory
-        }
+        // Debug: Log Fibonacci items being returned
+        console.log(`TradingChecklistV2 - ${timeframe.name} Fibonacci items:`, items)
+        
+        return items
       }
     },
 
@@ -1241,19 +1258,32 @@ export default function TradingChecklistV2({ marketData }: TradingChecklistProps
   // Calculate all indicators for all timeframes
   const allConditions: ChecklistItem[] = []
   
-  TIMEFRAMES.forEach(timeframeConfig => {
-    const timeframeDataItem = timeframeConfig.getData(timeframeData)
-    if (!timeframeDataItem) return
+     TIMEFRAMES.forEach(timeframeConfig => {
+     const timeframeDataItem = timeframeConfig.getData(timeframeData)
+     if (!timeframeDataItem) return
+     
+     // Debug: Log timeframe data availability
+     console.log(`TradingChecklistV2 - Processing ${timeframeConfig.name}:`, {
+       hasHistoricalOHLC: !!timeframeDataItem.historicalOHLC,
+       historicalOHLCLength: timeframeDataItem.historicalOHLC?.high.length || 0,
+       currentPrice: timeframeDataItem.price
+     })
     
-          // Apply all indicators to this timeframe
-      Object.values(INDICATORS).forEach(indicator => {
+                     // Apply all indicators to this timeframe
+       Object.values(INDICATORS).forEach(indicator => {
+         // Debug: Log which indicator is being processed
+         console.log(`TradingChecklistV2 - Processing ${timeframeConfig.name} ${indicator.id}`)
                           if (indicator.id === 'price-action') {
            // Price action returns multiple items
            const items = indicator.calculate(timeframeDataItem) as ChecklistItem[]
            allConditions.push(...items)
+         } else if (indicator.id === 'fibonacci-retracements') {
+           // Fibonacci retracements returns multiple items (one for each level)
+           const items = indicator.calculate(timeframeDataItem) as ChecklistItem[]
+           allConditions.push(...items)
          } else if (indicator.id === 'bb') {
-           // Bollinger Bands - add for different periods
-           [20, 50, 89].forEach(period => {
+           // Bollinger Bands - add for different periods from config
+           getBollingerBandsPeriods().forEach(period => {
              const bbItem = indicator.calculate(timeframeDataItem, period) as ChecklistItem | null
              if (bbItem) allConditions.push(bbItem)
            })

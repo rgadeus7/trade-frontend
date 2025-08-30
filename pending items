@@ -7,3 +7,14 @@ ATR Stops - did SAR instead
 Trend Line 
 Structure info
 npm 
+
+---If market is sideways for more than X days
+-- allow to take particular date as input, so that get the data based on the date and show indicators
+-- Target Trend Integtation
+--- ATR Stops
+--- VIX based analysis seprate page
+--- 'Exhaustion levels (InSilico)
+--- Exhaustion Indicator - M13 - example
+--- Failed Breakdown levels
+--- Swing Failure Pattern
+--- Buy Signal based on 3 bar logic
