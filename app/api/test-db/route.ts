@@ -60,7 +60,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Get unique symbols
-    const uniqueSymbols = [...new Set(symbols?.map(s => s.symbol) || [])]
+    const uniqueSymbols = Array.from(new Set(symbols?.map(s => s.symbol) || []))
 
     return NextResponse.json({
       success: true,
