@@ -8,7 +8,8 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey)
 export interface MarketData {
   id: number
   symbol: string
-  timeframe: 'daily' | '2hour'
+  timeframe: number  // Changed from string to number to match backend
+  timeframe_unit: string  // Added to match backend schema
   timestamp: string
   open: number
   high: number

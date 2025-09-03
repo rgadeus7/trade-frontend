@@ -66,6 +66,9 @@ export interface ConfigurableThresholds {
   leftLength?: number
   rightLength?: number
   usePivotDetection?: boolean
+  // Delta Analysis specific properties
+  periods?: Record<string, number>
+  thresholds?: Record<string, Record<string, number>>
 }
 
 export interface Indicator {
@@ -275,6 +278,37 @@ export const getATRPrimaryPeriod = (): number => {
 export const getATRComparisonPeriod = (): number => {
   const periods = getATRPeriods()
   return periods[1] || 21
+}
+
+// ROC helper functions
+export const getROCPeriods = (): Record<string, number> => {
+  return tradingConfig.indicators.roc.configurable.periods || {
+    daily: 10,
+    '2hour': 10,
+    weekly: 5,
+    monthly: 3
+  }
+}
+
+export const getROCPeriod = (timeframe: string): number => {
+  const periods = getROCPeriods()
+  return periods[timeframe as keyof typeof periods] || 10
+}
+
+// SMA Distance helper functions
+export const getSMADistanceThresholds = (): Record<string, Record<string, number>> => {
+  return tradingConfig.indicators.smaDistance.configurable.thresholds || {
+    daily: { 20: 0.05, 50: 0.08, 89: 0.12, 200: 0.20 },
+    '2hour': { 20: 0.03, 50: 0.05, 89: 0.08, 200: 0.15 },
+    weekly: { 20: 0.08, 50: 0.12, 89: 0.18, 200: 0.25 },
+    monthly: { 20: 0.12, 50: 0.18, 89: 0.25, 200: 0.35 }
+  }
+}
+
+export const getSMADistanceThreshold = (timeframe: string, smaPeriod: number): number => {
+  const thresholds = getSMADistanceThresholds()
+  const timeframeThresholds = thresholds[timeframe as keyof typeof thresholds]
+  return timeframeThresholds?.[smaPeriod] || 0.10 // Default 10%
 }
 
 

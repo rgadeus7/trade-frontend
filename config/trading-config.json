@@ -10,12 +10,19 @@
           "buySignal": "Price above moving averages or bullish trend",
           "sellSignal": "Price below moving averages or bearish trend"
         },
-        "momentum": {
+        "oscillators": {
           "description": "Oscillators that show overbought/oversold conditions",
           "indicators": ["rsi"],
           "statusValues": ["OVERBOUGHT", "OVERSOLD", "NO_BIAS"],
           "buySignal": "Momentum indicators show OVERSOLD conditions",
           "sellSignal": "Momentum indicators show OVERBOUGHT conditions"
+        },
+        "delta-analysis": {
+          "description": "Rate of Change and SMA Distance analysis",
+          "indicators": ["roc", "smaDistance"],
+          "statusValues": ["BULLISH", "BEARISH", "NO_BIAS"],
+          "buySignal": "High ROC and price significantly above SMAs",
+          "sellSignal": "Low ROC and price significantly below SMAs"
         },
         "volatility": {
           "description": "Indicators that measure market volatility and support/resistance",
@@ -66,7 +73,7 @@
       }
     },
     "rsi": {
-      "type": "momentum",
+      "type": "oscillators",
       "periods": [14, 21],
       "description": "Relative Strength Index - momentum oscillator",
       "configurable": {
@@ -236,6 +243,56 @@
         "bullish": "Price near horizontal support",
         "bearish": "Price near horizontal resistance",
         "neutral": "Price away from key levels"
+      }
+    },
+    "roc": {
+      "type": "delta-analysis",
+      "description": "Rate of Change - measures the speed of price changes over time",
+      "configurable": {
+        "periods": {
+          "daily": 10,
+          "2hour": 10,
+          "weekly": 5,
+          "monthly": 3
+        },
+        "bullish": "High positive ROC indicating strong upward momentum",
+        "bearish": "High negative ROC indicating strong downward momentum",
+        "neutral": "Low ROC indicating weak momentum"
+      }
+    },
+    "smaDistance": {
+      "type": "delta-analysis",
+      "description": "SMA Distance Analysis - measures how far price is from moving averages",
+      "configurable": {
+        "thresholds": {
+          "daily": {
+            "20": 0.05,
+            "50": 0.08,
+            "89": 0.12,
+            "200": 0.20
+          },
+          "2hour": {
+            "20": 0.03,
+            "50": 0.05,
+            "89": 0.08,
+            "200": 0.15
+          },
+          "weekly": {
+            "20": 0.08,
+            "50": 0.12,
+            "89": 0.18,
+            "200": 0.25
+          },
+          "monthly": {
+            "20": 0.12,
+            "50": 0.18,
+            "89": 0.25,
+            "200": 0.35
+          }
+        },
+        "bullish": "Price significantly above SMAs indicating strong uptrend",
+        "bearish": "Price significantly below SMAs indicating strong downtrend",
+        "neutral": "Price near SMAs indicating consolidation"
       }
     }
   },

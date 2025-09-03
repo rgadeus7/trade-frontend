@@ -4,51 +4,79 @@ import { supabase } from '@/lib/supabase'
 export async function GET(request: NextRequest) {
   try {
     // Test basic connection
-    const { data: testData, error: testError } = await supabase
+    const { data: connectionTest, error: connectionError } = await supabase
       .from('market_data')
       .select('count')
       .limit(1)
     
-    if (testError) {
-      console.error('Database connection error:', testError)
-      return NextResponse.json({ error: 'Database connection failed', details: testError }, { status: 500 })
+    if (connectionError) {
+      console.error('Database connection error:', connectionError)
+      return NextResponse.json({ 
+        error: 'Database connection failed', 
+        details: connectionError.message 
+      }, { status: 500 })
     }
+
+    // Check if we have any market data
+    const { data: marketDataCount, error: countError } = await supabase
+      .from('market_data')
+      .select('*', { count: 'exact', head: true })
     
-    // Get all data
-    const { data, error } = await supabase
+    if (countError) {
+      console.error('Count query error:', countError)
+      return NextResponse.json({ 
+        error: 'Count query failed', 
+        details: countError.message 
+      }, { status: 500 })
+    }
+
+    // Check for SPX data specifically
+    const { data: spxData, error: spxError } = await supabase
       .from('market_data')
       .select('*')
-      .order('timestamp', { ascending: false })
-      .limit(200)
+      .eq('symbol', '$SPX.X')
+      .limit(5)
     
-    if (error) {
-      console.error('Error fetching data:', error)
-      return NextResponse.json({ error: 'Failed to fetch data', details: error }, { status: 500 })
+    if (spxError) {
+      console.error('SPX query error:', spxError)
+      return NextResponse.json({ 
+        error: 'SPX query failed', 
+        details: spxError.message 
+      }, { status: 500 })
     }
+
+    // Check for any symbols in the database
+    const { data: symbols, error: symbolsError } = await supabase
+      .from('market_data')
+      .select('symbol')
+      .limit(10)
     
-    // Check specifically for 2-hour data
-    const twoHourData = data?.filter(item => item.timeframe === '2hour')
-    
-    // Group by symbol and timeframe
-    const grouped = data?.reduce((acc, item) => {
-      const key = `${item.symbol}-${item.timeframe}`
-      if (!acc[key]) {
-        acc[key] = []
-      }
-      acc[key].push(item)
-      return acc
-    }, {} as Record<string, any[]>)
-    
+    if (symbolsError) {
+      console.error('Symbols query error:', symbolsError)
+      return NextResponse.json({ 
+        error: 'Symbols query failed', 
+        details: symbolsError.message 
+      }, { status: 500 })
+    }
+
+    // Get unique symbols
+    const uniqueSymbols = [...new Set(symbols?.map(s => s.symbol) || [])]
+
     return NextResponse.json({
-      totalRecords: data?.length || 0,
-      twoHourRecords: twoHourData?.length || 0,
-      groupedData: grouped,
-      rawData: data?.slice(0, 10), // First 10 records
-      twoHourData: twoHourData?.slice(0, 5) // First 5 2-hour records
+      success: true,
+      connection: 'OK',
+      totalRecords: marketDataCount?.length || 0,
+      spxRecords: spxData?.length || 0,
+      availableSymbols: uniqueSymbols,
+      sampleSpxData: spxData?.slice(0, 2) || [],
+      message: 'Database connection and queries successful'
     })
-    
+
   } catch (error) {
-    console.error('Test endpoint error:', error)
-    return NextResponse.json({ error: 'Test failed', details: error }, { status: 500 })
+    console.error('Unexpected error in test-db:', error)
+    return NextResponse.json({ 
+      error: 'Unexpected error', 
+      details: error instanceof Error ? error.message : 'Unknown error'
+    }, { status: 500 })
   }
 }

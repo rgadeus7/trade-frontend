@@ -32,7 +32,9 @@ import {
   getPivotPointsTolerance,
   getFibonacciTolerance,
   getHorizontalLevelsTolerance,
-  getHorizontalLevelsMinTouches
+  getHorizontalLevelsMinTouches,
+  getROCPeriod,
+  getSMADistanceThreshold
 } from '../config/trading-config'
 import { MarketData } from '../types/market'
 import { timeframeDataService, type TimeframeData as ServiceTimeframeData } from '../lib/timeframeDataService'
@@ -274,7 +276,7 @@ const INDICATORS: {
   rsi: {
     id: 'rsi',
     label: 'RSI Signal',
-    getCategory: () => getIndicatorCategorization('rsi') || { category: 'technical', subcategory: 'momentum' },
+    getCategory: () => getIndicatorCategorization('rsi') || { category: 'technical', subcategory: 'oscillators' },
     calculate: (timeframe: TimeframeData): ChecklistItem | null => {
       if (!timeframe.historicalPrices || timeframe.historicalPrices.length < 15) return null
       
@@ -1058,6 +1060,90 @@ const INDICATORS: {
           subcategory: INDICATORS.horizontalLevels.getCategory().subcategory
         }
       }
+    },
+
+    // ROC indicator
+    roc: {
+      id: 'roc',
+      label: 'Rate of Change',
+      getCategory: () => getIndicatorCategorization('roc') || { category: 'technical', subcategory: 'delta-analysis' },
+      calculate: (timeframe: TimeframeData): ChecklistItem | null => {
+        const rocPeriod = getROCPeriod(timeframe.name.toLowerCase())
+        if (!timeframe.historicalPrices || timeframe.historicalPrices.length < rocPeriod + 1) return null
+        
+        const currentPrice = timeframe.historicalPrices[timeframe.historicalPrices.length - 1]
+        const pastPrice = timeframe.historicalPrices[timeframe.historicalPrices.length - 1 - rocPeriod]
+        const roc = ((currentPrice - pastPrice) / pastPrice) * 100
+        
+        let status: 'BULLISH' | 'BEARISH' | 'NO_BIAS'
+        let strength: 'STRONG' | 'MODERATE' | 'WEAK'
+        
+        if (roc > 5) {
+          status = 'BULLISH'
+          strength = roc > 10 ? 'STRONG' : 'MODERATE'
+        } else if (roc < -5) {
+          status = 'BEARISH'
+          strength = roc < -10 ? 'STRONG' : 'MODERATE'
+        } else {
+          status = 'NO_BIAS'
+          strength = 'WEAK'
+        }
+        
+        return {
+          id: `${timeframe.name}-roc`,
+          label: `${timeframe.name} ROC (${rocPeriod})`,
+          status,
+          strength,
+          description: `SPX: ROC ${roc.toFixed(2)}% over ${rocPeriod} bars | ${status === 'BULLISH' ? 'Strong Momentum' : status === 'BEARISH' ? 'Weak Momentum' : 'Neutral'}`,
+          category: INDICATORS.roc.getCategory().category,
+          subcategory: INDICATORS.roc.getCategory().subcategory
+        }
+      }
+    },
+
+    // SMA Distance Analysis indicator - returns array of individual SMA distance items
+    smaDistance: {
+      id: 'sma-distance',
+      label: 'SMA Distance Analysis',
+      getCategory: () => getIndicatorCategorization('smaDistance') || { category: 'technical', subcategory: 'delta-analysis' },
+      calculate: (timeframe: TimeframeData): ChecklistItem[] => {
+        const smaPeriods = [20, 50, 89, 200]
+        const currentPrice = timeframe.price
+        const items: ChecklistItem[] = []
+        
+        smaPeriods.forEach(period => {
+          if (timeframe.sma && timeframe.sma[period]) {
+            const smaValue = timeframe.sma[period]
+            const distance = Math.abs(currentPrice - smaValue) / smaValue
+            const distancePercentage = distance * 100
+            const threshold = getSMADistanceThreshold(timeframe.name.toLowerCase(), period)
+            
+            // Determine status based on price position relative to this specific SMA
+            let status: 'BULLISH' | 'BEARISH' | 'NO_BIAS'
+            let strength: 'STRONG' | 'MODERATE' | 'WEAK'
+            
+            if (currentPrice > smaValue) {
+              status = 'BULLISH'
+              strength = distance > threshold * 1.5 ? 'STRONG' : distance > threshold ? 'MODERATE' : 'WEAK'
+            } else {
+              status = 'BEARISH'
+              strength = distance > threshold * 1.5 ? 'STRONG' : distance > threshold ? 'MODERATE' : 'WEAK'
+            }
+            
+            items.push({
+              id: `${timeframe.name}-sma-${period}-distance`,
+              label: `${timeframe.name} ${period} SMA Distance`,
+              status,
+              strength,
+              description: `SPX: $${currentPrice.toFixed(2)} | ${period} SMA: $${smaValue.toFixed(2)} | Distance: ${distancePercentage.toFixed(1)}% | Threshold: ${(threshold * 100).toFixed(1)}%`,
+              category: INDICATORS.smaDistance.getCategory().category,
+              subcategory: INDICATORS.smaDistance.getCategory().subcategory
+            })
+          }
+        })
+        
+        return items
+      }
     }
 }
 
@@ -1277,21 +1363,25 @@ export default function TradingChecklistV2({ marketData }: TradingChecklistProps
            // Price action returns multiple items
            const items = indicator.calculate(timeframeDataItem) as ChecklistItem[]
            allConditions.push(...items)
-         } else if (indicator.id === 'fibonacci-retracements') {
-           // Fibonacci retracements returns multiple items (one for each level)
-           const items = indicator.calculate(timeframeDataItem) as ChecklistItem[]
-           allConditions.push(...items)
-         } else if (indicator.id === 'bb') {
-           // Bollinger Bands - add for different periods from config
-           getBollingerBandsPeriods().forEach(period => {
-             const bbItem = indicator.calculate(timeframeDataItem, period) as ChecklistItem | null
-             if (bbItem) allConditions.push(bbItem)
-           })
-         } else {
-           // Other indicators return single item
-           const item = indicator.calculate(timeframeDataItem) as ChecklistItem | null
-           if (item) allConditions.push(item)
-         }
+                   } else if (indicator.id === 'fibonacci-retracements') {
+            // Fibonacci retracements returns multiple items (one for each level)
+            const items = indicator.calculate(timeframeDataItem) as ChecklistItem[]
+            allConditions.push(...items)
+          } else if (indicator.id === 'sma-distance') {
+            // SMA Distance returns multiple items (one for each SMA period)
+            const items = indicator.calculate(timeframeDataItem) as ChecklistItem[]
+            allConditions.push(...items)
+          } else if (indicator.id === 'bb') {
+            // Bollinger Bands - add for different periods from config
+            getBollingerBandsPeriods().forEach(period => {
+              const bbItem = indicator.calculate(timeframeDataItem, period) as ChecklistItem | null
+              if (bbItem) allConditions.push(bbItem)
+            })
+          } else {
+            // Other indicators return single item
+            const item = indicator.calculate(timeframeDataItem) as ChecklistItem | null
+            if (item) allConditions.push(item)
+          }
       })
   })
 

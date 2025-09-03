@@ -112,6 +112,18 @@ export class TechnicalAnalysis {
     return cumulativeVolume > 0 ? cumulativeTPV / cumulativeVolume : 0
   }
 
+  // Calculate Rate of Change (ROC)
+  static calculateROC(prices: number[], period: number): number {
+    if (prices.length < period + 1) return 0
+    
+    const currentPrice = prices[prices.length - 1]
+    const pastPrice = prices[prices.length - 1 - period]
+    
+    if (pastPrice === 0) return 0
+    
+    return ((currentPrice - pastPrice) / pastPrice) * 100
+  }
+
   // Calculate Volume Profile
   static calculateVolumeProfile(high: number[], low: number[], close: number[], volume: number[], priceLevels: number = 10): {
     poc: number; // Point of Control

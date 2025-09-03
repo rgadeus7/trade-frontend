@@ -10,15 +10,9 @@ export async function GET(request: NextRequest) {
     const symbol = searchParams.get('symbol')
 
     if (symbol) {
-      // Get data for specific symbol
-      const data = await getDashboardData()
-      const symbolData = data.find(item => item.symbol === symbol)
-      
-      if (!symbolData) {
-        return NextResponse.json({ error: 'Symbol not found' }, { status: 404 })
-      }
-      
-      return NextResponse.json(symbolData)
+      // Get data for specific symbol - getDashboardData already returns an array
+      const data = await getDashboardData(symbol)
+      return NextResponse.json(data)
     } else {
       // Get data for all symbols
       const data = await getDashboardData()

@@ -1,6 +1,44 @@
 import { supabase } from './supabase'
 import type { MarketData } from './supabase'
 
+// Timeframe mapping to match backend schema
+const TIMEFRAME_MAP = {
+  // Daily timeframes
+  'daily': 1,
+  '1D': 1,
+  '1d': 1,
+  
+  // Hourly timeframes  
+  '2hour': 120,
+  '2h': 120,
+  '2H': 120,
+  '1hour': 60,
+  '1h': 60,
+  '1H': 60,
+  
+  // Minute timeframes (for future support)
+  '15min': 15,
+  '15minute': 15,
+  '30min': 30,
+  '30minute': 30,
+  '60min': 60,
+  '60minute': 60,
+  
+  // Weekly timeframes
+  'weekly': 7,
+  '1W': 7,
+  '1w': 7,
+  '7D': 7,
+  '7d': 7,
+  
+  // Monthly timeframes
+  'monthly': 30,
+  '1M': 30,
+  '1m': 30,
+  '30D': 30,
+  '30d': 30
+} as const
+
 // Get SMA periods from trading config
 function getSMAPeriods(): number[] {
   try {
@@ -13,21 +51,75 @@ function getSMAPeriods(): number[] {
   }
 }
 
+// Convert timeframe string to integer
+function getTimeframeValue(timeframe: string): number {
+  const value = TIMEFRAME_MAP[timeframe as keyof typeof TIMEFRAME_MAP]
+  if (value === undefined) {
+    throw new Error(`Invalid timeframe: ${timeframe}. Supported values: ${Object.keys(TIMEFRAME_MAP).join(', ')}`)
+  }
+  return value
+}
+
+// Get display name for timeframe value
+export function getTimeframeDisplayName(timeframeValue: number): string {
+  for (const [key, value] of Object.entries(TIMEFRAME_MAP)) {
+    if (value === timeframeValue) {
+      return key
+    }
+  }
+  return `Unknown (${timeframeValue})`
+}
+
+// Get all supported timeframes
+export function getSupportedTimeframes(): string[] {
+  return Object.keys(TIMEFRAME_MAP)
+}
+
+// Get available symbols for the dashboard
+export function getAvailableSymbols() {
+  return [
+    { value: 'SPX', label: 'SPX', description: 'S&P 500 Index' },
+    { value: 'SPY', label: 'SPY', description: 'SPDR S&P 500 ETF' },
+    { value: 'ES', label: 'ES', description: 'E-mini S&P 500 Futures' },
+    { value: 'VIX', label: 'VIX', description: 'Volatility Index' }
+  ]
+}
+
 // Get market data for a symbol and timeframe
-export async function getMarketData(symbol: string, timeframe: 'daily' | '2hour' | 'weekly' | 'monthly', limit: number = 300) {
-  const { data, error } = await supabase
+export async function getMarketData(symbol: string, timeframe: string, limit: number = 300) {
+  const timeframeValue = getTimeframeValue(timeframe)
+  
+  console.log(`🔍 Fetching market data: ${symbol}, timeframe: ${timeframe} -> ${timeframeValue}`)
+  
+  // For daily, weekly, monthly - we need to query by timeframe_unit
+  let query = supabase
     .from('market_data')
     .select('*')
     .eq('symbol', symbol)
-    .eq('timeframe', timeframe)
     .order('timestamp', { ascending: false })
     .limit(limit)
   
+  if (timeframe === 'daily') {
+    query = query.eq('timeframe_unit', 'Daily')
+  } else if (timeframe === 'weekly') {
+    query = query.eq('timeframe_unit', 'Weekly')
+  } else if (timeframe === 'monthly') {
+    query = query.eq('timeframe_unit', 'Monthly')
+  } else if (timeframe === '2h' || timeframe === '2hour') {
+    query = query.eq('timeframe_unit', 'Minute').eq('timeframe', 120)
+  } else {
+    // For other intraday data, use the timeframe integer
+    query = query.eq('timeframe', timeframeValue)
+  }
+  
+  const { data, error } = await query
+  
   if (error) {
-    console.error('Error fetching market data:', error)
+    console.error(`❌ Error fetching market data for ${symbol} (${timeframe}):`, error)
     throw error
   }
   
+  console.log(`✅ Fetched ${data?.length || 0} records for ${symbol} (${timeframe})`)
   return data as MarketData[]
 }
 
@@ -52,7 +144,7 @@ export async function insertMarketData(data: Omit<MarketData, 'id' | 'created_at
 // Note: Removed insertIndicators function - indicators are calculated on-demand
 
 // Calculate technical indicators on-demand
-export function calculateIndicators(data: MarketData[], timeframe: 'daily' | '2hour' | 'weekly' | 'monthly' = 'daily') {
+export function calculateIndicators(data: MarketData[], timeframe: string = 'daily') {
   if (data.length === 0) {
     const smaPeriods = getSMAPeriods()
     const emptySMA: { [period: number]: number } = {}
@@ -147,7 +239,7 @@ export function calculateIndicators(data: MarketData[], timeframe: 'daily' | '2h
 }
 
 // Get data for dashboard display with on-demand indicator calculation
-export async function getDashboardData() {
+export async function getDashboardData(symbolFilter?: string) {
   try {
     // Map display symbols to actual database symbols
     const symbolMap = {
@@ -157,14 +249,19 @@ export async function getDashboardData() {
       'VIX': '$VIX.X'
     }
     
+    // Determine which symbols to fetch
+    const symbolsToFetch = symbolFilter 
+      ? [symbolFilter] 
+      : ['SPX', 'SPY', 'ES', 'VIX']
+    
     // Calculate indicators on-demand for each symbol
     const dashboardData = await Promise.all(
-      ['SPY', 'SPX', 'ES', 'VIX'].map(async (displaySymbol) => {
+      symbolsToFetch.map(async (displaySymbol) => {
         const dbSymbol = symbolMap[displaySymbol as keyof typeof symbolMap]
         
         // Get historical data for all timeframes (increased to 500 records for better indicator accuracy)
         const dailyHistoricalData = await getMarketData(dbSymbol, 'daily', 500)
-        const hourlyHistoricalData = await getMarketData(dbSymbol, '2hour', 500)
+        const hourlyHistoricalData = await getMarketData(dbSymbol, '2h', 500)
         const weeklyHistoricalData = await getMarketData(dbSymbol, 'weekly', 500)
         const monthlyHistoricalData = await getMarketData(dbSymbol, 'monthly', 500)
         
