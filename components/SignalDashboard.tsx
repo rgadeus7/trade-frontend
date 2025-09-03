@@ -5,6 +5,7 @@ import { Activity, BarChart3, RefreshCw } from 'lucide-react'
 import TradingChecklist from './TradingChecklistV2'
 import SymbolDropdown from './SymbolDropdown'
 import { MarketData } from '../types/market'
+import { useAuth } from '@/contexts/AuthContext'
 
 interface SignalDashboardProps {
   watchlist?: string[]
@@ -15,6 +16,7 @@ export default function SignalDashboard({
   watchlist = ['SPY', 'SPX', 'ES', 'VIX'],
   apiToken
 }: SignalDashboardProps) {
+  const { session } = useAuth()
   const [marketData, setMarketData] = useState<MarketData[]>([])
   const [loading, setLoading] = useState(false)
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
@@ -37,8 +39,13 @@ export default function SignalDashboard({
       // Always fetch the currently selected symbol
       const apiUrl = `/api/market-data?symbol=${selectedInstrument}`
       
-      // Fetch data from our database API
-      const response = await fetch(apiUrl)
+      // Fetch data from our database API with authentication
+      const response = await fetch(apiUrl, {
+        headers: {
+          'Authorization': `Bearer ${session?.access_token}`,
+          'Content-Type': 'application/json'
+        }
+      })
       
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`)
