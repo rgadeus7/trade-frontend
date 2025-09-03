@@ -915,13 +915,13 @@ const INDICATORS: {
           : TechnicalAnalysis.findPivotLows(low, leftLength, rightLength) // Default to pivot detection
         
         // Debug: Log swing detection results
-        console.log(`TradingChecklistV2 - ${timeframe.name} Swing detection:`, {
-          swingHighsCount: swingHighs.length,
-          swingLowsCount: swingLows.length,
-          leftLength,
-          rightLength,
-          dataLength: timeframe.historicalOHLC.high.length
-        })
+        // console.log(`TradingChecklistV2 - ${timeframe.name} Swing detection:`, {
+        //   swingHighsCount: swingHighs.length,
+        //   swingLowsCount: swingLows.length,
+        //   leftLength,
+        //   rightLength,
+        //   dataLength: timeframe.historicalOHLC.high.length
+        // })
         
         if (swingHighs.length === 0 || swingLows.length === 0) return []
         
@@ -934,13 +934,13 @@ const INDICATORS: {
         const tolerance = getFibonacciTolerance()
         
         // Debug: Log Fibonacci calculation details
-        console.log(`TradingChecklistV2 - ${timeframe.name} Fibonacci calculation:`, {
-          swingHigh,
-          swingLow,
-          currentPrice,
-          tolerance,
-          fibLevels
-        })
+        // console.log(`TradingChecklistV2 - ${timeframe.name} Fibonacci calculation:`, {
+        //   swingHigh,
+        //   swingLow,
+        //   currentPrice,
+        //   tolerance,
+        //   fibLevels
+        // })
         
                  // Define Fibonacci retracement levels (excluding 0% and 100% as they're the swing points)
          const levels = [
@@ -987,7 +987,7 @@ const INDICATORS: {
         })
         
         // Debug: Log Fibonacci items being returned
-        console.log(`TradingChecklistV2 - ${timeframe.name} Fibonacci items:`, items)
+        // console.log(`TradingChecklistV2 - ${timeframe.name} Fibonacci items:`, items)
         
         return items
       }
@@ -1279,10 +1279,10 @@ export default function TradingChecklistV2({ marketData }: TradingChecklistProps
 
              try {
          setLoading(true)
-         console.log('Fetching timeframe-specific data for SPX...')
+                   // console.log('Fetching timeframe-specific data for SPX...')
          const data = await timeframeDataService.getAllTimeframesData('SPX', 500)
          setTimeframeData(data)
-         console.log('Timeframe data fetched:', Object.keys(data).filter(k => data[k as keyof typeof data]))
+                   // console.log('Timeframe data fetched:', Object.keys(data).filter(k => data[k as keyof typeof data]))
        } catch (error) {
          console.error('Error fetching timeframe data:', error)
        } finally {
@@ -1349,16 +1349,16 @@ export default function TradingChecklistV2({ marketData }: TradingChecklistProps
      if (!timeframeDataItem) return
      
      // Debug: Log timeframe data availability
-     console.log(`TradingChecklistV2 - Processing ${timeframeConfig.name}:`, {
-       hasHistoricalOHLC: !!timeframeDataItem.historicalOHLC,
-       historicalOHLCLength: timeframeDataItem.historicalOHLC?.high.length || 0,
-       currentPrice: timeframeDataItem.price
-     })
+     // console.log(`TradingChecklistV2 - Processing ${timeframeConfig.name}:`, {
+     //   hasHistoricalOHLC: !!timeframeDataItem.historicalOHLC,
+     //   historicalOHLCLength: timeframeDataItem.historicalOHLC?.high.length || 0,
+     //   currentPrice: timeframeDataItem.price
+     // })
     
                      // Apply all indicators to this timeframe
        Object.values(INDICATORS).forEach(indicator => {
          // Debug: Log which indicator is being processed
-         console.log(`TradingChecklistV2 - Processing ${timeframeConfig.name} ${indicator.id}`)
+         // console.log(`TradingChecklistV2 - Processing ${timeframeConfig.name} ${indicator.id}`)
                           if (indicator.id === 'price-action') {
            // Price action returns multiple items
            const items = indicator.calculate(timeframeDataItem) as ChecklistItem[]
@@ -1413,12 +1413,12 @@ export default function TradingChecklistV2({ marketData }: TradingChecklistProps
   }, {} as Record<string, ChecklistItem[]>)
 
   // Debug logging
-  console.log('All conditions:', allConditions.length)
-  console.log('Filtered conditions:', filteredConditions.length)
-  console.log('Selected timeframes:', Array.from(selectedTimeframes))
-  console.log('Conditions by timeframe:', conditionsByTimeframe)
-  console.log('All conditions details:', allConditions.map(c => ({ id: c.id, category: c.category, status: c.status })))
-  console.log('Price action conditions:', allConditions.filter(c => c.category === 'price-action'))
+  // console.log('All conditions:', allConditions.length)
+  // console.log('Filtered conditions:', filteredConditions.length)
+  // console.log('Selected timeframes:', Array.from(selectedTimeframes))
+  // console.log('Conditions by timeframe:', conditionsByTimeframe)
+  // console.log('All conditions details:', allConditions.map(c => ({ id: c.id, category: c.category, status: c.status })))
+  // console.log('Price action conditions:', allConditions.filter(c => c.category === 'price-action'))
 
   // Calculate summary statistics
   const technicalConditions = allConditions.filter(c => c.category === 'technical')

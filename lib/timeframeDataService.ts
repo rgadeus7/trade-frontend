@@ -50,11 +50,11 @@ class TimeframeDataServiceImpl implements TimeframeDataService {
       const dbSymbol = this.symbolMap[symbol as keyof typeof this.symbolMap] || symbol
       
       // Make API call for specific timeframe
-      console.log(`Fetching ${timeframe} data for ${symbol} (DB: ${dbSymbol})`)
+      // console.log(`Fetching ${timeframe} data for ${symbol} (DB: ${dbSymbol})`)
       const historicalData = await getMarketData(dbSymbol, timeframe, limit)
       
       if (historicalData.length === 0) {
-        console.warn(`No ${timeframe} data found for ${symbol}`)
+        // console.warn(`No ${timeframe} data found for ${symbol}`)
         return null
       }
 
@@ -102,7 +102,7 @@ class TimeframeDataServiceImpl implements TimeframeDataService {
         historicalVolume
       }
     } catch (error) {
-      console.error(`Error fetching ${timeframe} data for ${symbol}:`, error)
+      // console.error(`Error fetching ${timeframe} data for ${symbol}:`, error)
       return null
     }
   }
@@ -128,7 +128,7 @@ class TimeframeDataServiceImpl implements TimeframeDataService {
       if (result.status === 'fulfilled') {
         data[timeframe] = result.value
       } else {
-        console.error(`Failed to fetch ${timeframe} data for ${symbol}:`, result.reason)
+        // console.error(`Failed to fetch ${timeframe} data for ${symbol}:`, result.reason)
       }
     })
 
@@ -148,7 +148,7 @@ class TimeframeDataServiceImpl implements TimeframeDataService {
       if (result.status === 'fulfilled') {
         data[symbol] = result.value
       } else {
-        console.error(`Failed to fetch data for ${symbol}:`, result.reason)
+        // console.error(`Failed to fetch data for ${symbol}:`, result.reason)
         data[symbol] = { daily: null, '2hour': null, weekly: null, monthly: null }
       }
     })

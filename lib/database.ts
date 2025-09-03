@@ -85,18 +85,69 @@ export function getAvailableSymbols() {
   ]
 }
 
+// Helper function to deduplicate market data by timeframe
+function deduplicateMarketData(data: MarketData[], timeframe: string): MarketData[] {
+  if (data.length === 0) return data
+  
+  // console.log(`🔄 Deduplicating ${timeframe} data: ${data.length} records`)
+  
+  let uniqueData: MarketData[]
+  
+  if (timeframe === 'daily' || timeframe === 'weekly' || timeframe === 'monthly') {
+    // For time-based data, deduplicate by date and keep most recent
+    const dateGroups = new Map()
+    data.forEach(item => {
+      const dateKey = new Date(item.timestamp).toDateString()
+      if (!dateGroups.has(dateKey) || new Date(item.timestamp) > new Date(dateGroups.get(dateKey).timestamp)) {
+        dateGroups.set(dateKey, item) // Keep the most recent timestamp for this date
+      }
+    })
+    
+    // Convert back to array and sort by timestamp (newest first)
+    uniqueData = Array.from(dateGroups.values()).sort((a, b) => 
+      new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+    )
+  } else if (timeframe === '2h' || timeframe === '2hour') {
+    // For intraday data, deduplicate by exact timestamp (should be unique anyway)
+    const timestampGroups = new Map()
+    data.forEach(item => {
+      const timeKey = new Date(item.timestamp).toISOString()
+      if (!timestampGroups.has(timeKey)) {
+        timestampGroups.set(timeKey, item)
+      }
+    })
+    
+    uniqueData = Array.from(timestampGroups.values()).sort((a, b) => 
+      new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+    )
+  } else {
+    // For other timeframes, just remove exact duplicates
+    uniqueData = data.filter((item, index, self) => 
+      index === self.findIndex(t => t.timestamp === item.timestamp && t.close === item.close)
+    )
+  }
+  
+  const duplicateCount = data.length - uniqueData.length
+  if (duplicateCount > 0) {
+    // console.warn(`⚠️ Found ${duplicateCount} duplicate records in ${timeframe} data`)
+  }
+  
+  // console.log(`✅ Deduplication complete: ${data.length} → ${uniqueData.length} unique records`)
+  return uniqueData
+}
+
 // Get market data for a symbol and timeframe
 export async function getMarketData(symbol: string, timeframe: string, limit: number = 300) {
   const timeframeValue = getTimeframeValue(timeframe)
   
-  console.log(`🔍 Fetching market data: ${symbol}, timeframe: ${timeframe} -> ${timeframeValue}`)
+  // console.log(`🔍 Fetching market data: ${symbol}, timeframe: ${timeframe} -> ${timeframeValue}`)
   
   // For daily, weekly, monthly - we need to query by timeframe_unit
   let query = supabase
     .from('market_data')
     .select('*')
     .eq('symbol', symbol)
-    .order('timestamp', { ascending: false })
+    .order('timestamp', { ascending: false }) // Keep descending - newest first for SMA calculations
     .limit(limit)
   
   if (timeframe === 'daily') {
@@ -119,8 +170,12 @@ export async function getMarketData(symbol: string, timeframe: string, limit: nu
     throw error
   }
   
-  console.log(`✅ Fetched ${data?.length || 0} records for ${symbol} (${timeframe})`)
-  return data as MarketData[]
+  // console.log(`✅ Fetched ${data?.length || 0} records for ${symbol} (${timeframe})`)
+  
+  // Deduplicate data right after fetching to ensure clean data for all calculations
+  const deduplicatedData = deduplicateMarketData(data || [], timeframe)
+  
+  return deduplicatedData as MarketData[]
 }
 
 
@@ -167,17 +222,87 @@ export function calculateIndicators(data: MarketData[], timeframe: string = 'dai
     }
   }
 
-  const prices = data.map(d => d.close).reverse() // Reverse to get chronological order
-  const lowPrices = data.map(d => d.low).reverse() // Add low prices for SMA low calculation
+  // Helper function to validate data sufficiency for accurate SMA calculations
+  const hasSufficientDataForSMA = (dataLength: number, period: number): boolean => {
+    return dataLength >= period
+  }
+
+  // Manual verification function for 89 SMA
+  const verify89SMA = (prices: number[]) => {
+    if (prices.length < 89) {
+      console.warn(`⚠️ Cannot verify 89 SMA: only ${prices.length} prices available`)
+      return null
+    }
+    
+    const sma89Prices = prices.slice(0, 89)
+    const manualSum = sma89Prices.reduce((sum, price) => sum + price, 0)
+    const manualSMA = manualSum / 89
+    
+    // console.log(`🔍 Manual 89 SMA Verification:`)
+    // console.log(`  Using first 89 prices: ${sma89Prices.length}`)
+    // console.log(`  Manual sum: ${manualSum.toFixed(2)}`)
+    // console.log(`  Manual SMA: ${manualSMA.toFixed(2)}`)
+    // console.log(`  Expected: 6147.00`)
+    // console.log(`  Difference: ${Math.abs(manualSMA - 6147.00).toFixed(2)}`)
+    
+    return manualSMA
+  }
+
+  let prices = data.map(d => d.close) // Data is now in chronological order (oldest first)
+  let lowPrices = data.map(d => d.low) // Data is now in chronological order (oldest first)
   const smaPeriods = getSMAPeriods()
+
+  // Debug data ordering for 89 SMA
+  // console.log(`📊 Data Ordering Debug for ${timeframe}:`)
+  // console.log(`  Raw data count: ${data.length}`)
+  // console.log(`  Prices count: ${prices.length}`)
+  if (data.length > 0) {
+    // console.log(`  Raw data first (oldest): ${data[0].close} at ${data[0].timestamp}`)
+    // console.log(`  Raw data last (newest): ${data[data.length - 1].close} at ${data[data.length - 1].timestamp}`)
+    // console.log(`  Prices first: ${prices[0]} (should be oldest)`)
+    // console.log(`  Prices last: ${prices[prices.length - 1]} (should be newest)`)
+  }
 
   // Calculate SMA
   const calculateSMA = (prices: number[], period: number) => {
     if (prices.length < period) {
+      // Log warning when falling back to average of all prices
+      // console.warn(`⚠️ Insufficient data for ${period}-period SMA: only ${prices.length} records available. Using average of all prices.`)
       const sum = prices.reduce((a, b) => a + b, 0)
       return sum / prices.length
     }
-    const recentPrices = prices.slice(-period)
+    
+    // For 89 SMA, add detailed debugging
+    if (period === 89) {
+      // console.log(`🔍 89 SMA Calculation Debug:`)
+      // console.log(`  Total prices available: ${prices.length}`)
+      // console.log(`  Taking first ${period} prices (most recent for proper SMA)`)
+      
+      const recentPrices = prices.slice(0, period) // Take first 89 prices (most recent)
+      // console.log(`  First 5 prices (most recent): ${recentPrices.slice(0, 5).map(p => p.toFixed(2)).join(', ')}`)
+      // console.log(`  Last 5 prices (oldest in 89): ${recentPrices.slice(-5).map(p => p.toFixed(2)).join(', ')}`)
+      
+      // Show all 89 prices for verification
+      // console.log(`  All 89 prices used for calculation:`)
+      // recentPrices.forEach((price, index) => {
+      //   console.log(`    [${index + 1}]: ${price.toFixed(2)}`)
+      // })
+      
+      const sum = recentPrices.reduce((a, b) => a + b, 0)
+      const result = sum / period
+      // console.log(`  Sum: ${sum.toFixed(2)}, Period: ${period}, Result: ${result.toFixed(2)}`)
+      // console.log(`  Verification: ${sum.toFixed(2)} ÷ ${period} = ${result.toFixed(2)}`)
+      
+      // Manual verification
+      const manualResult = verify89SMA(prices)
+      if (manualResult && Math.abs(manualResult - result) > 0.01) {
+        // console.error(`🚨 DISCREPANCY DETECTED: Calculated ${result.toFixed(2)} vs Manual ${manualResult.toFixed(2)}`)
+      }
+      
+      return result
+    }
+    
+    const recentPrices = prices.slice(0, period) // Take first 'period' prices (most recent)
     const sum = recentPrices.reduce((a, b) => a + b, 0)
     return sum / period
   }
@@ -192,9 +317,11 @@ export function calculateIndicators(data: MarketData[], timeframe: string = 'dai
     }
     
     const multiplier = 2 / (period + 1)
+    // Start with SMA of the first 'period' prices (most recent)
     const initialSMA = prices.slice(0, period).reduce((a, b) => a + b, 0) / period
     let ema = initialSMA
     
+    // Calculate EMA for all remaining prices (older ones)
     for (let i = period; i < prices.length; i++) {
       ema = (prices[i] * multiplier) + (ema * (1 - multiplier))
     }
@@ -206,9 +333,20 @@ export function calculateIndicators(data: MarketData[], timeframe: string = 'dai
   const sma: { [period: number]: number } = {}
   const smaLow: { [period: number]: number } = {}
   
+  // Log data availability for debugging
+  // console.log(`📊 Calculating indicators for ${timeframe}: ${prices.length} price records available`)
+  
   smaPeriods.forEach(period => {
     sma[period] = calculateSMA(prices, period)
     smaLow[period] = calculateSMA(lowPrices, period)
+  })
+
+  // Validate critical SMA periods and provide better fallbacks
+  const criticalPeriods = [89, 200]
+  criticalPeriods.forEach(period => {
+    if (prices.length < period) {
+      // console.warn(`🚨 Critical: ${period}-period SMA calculation may be inaccurate. Need ${period} records, only have ${prices.length}`)
+    }
   })
 
   // Use 89-period and 200-period SMA for all timeframes
@@ -264,6 +402,20 @@ export async function getDashboardData(symbolFilter?: string) {
         const hourlyHistoricalData = await getMarketData(dbSymbol, '2h', 500)
         const weeklyHistoricalData = await getMarketData(dbSymbol, 'weekly', 500)
         const monthlyHistoricalData = await getMarketData(dbSymbol, 'monthly', 500)
+        
+        // Validate data availability for accurate calculations
+        // console.log(`📈 Data validation for ${displaySymbol}:`)
+        // console.log(`  Daily: ${dailyHistoricalData.length} records (need 89+ for accurate 89 SMA)`)
+        // console.log(`  2-Hour: ${hourlyHistoricalData.length} records (need 89+ for accurate 89 SMA)`)
+        // console.log(`  Weekly: ${weeklyHistoricalData.length} records (need 89+ for accurate 89 SMA)`)
+        // console.log(`  Monthly: ${monthlyHistoricalData.length} records (need 89+ for accurate 89 SMA)`)
+        
+        // Log date range for debugging
+        if (dailyHistoricalData.length > 0) {
+          const oldestDate = new Date(dailyHistoricalData[dailyHistoricalData.length - 1].timestamp)
+          const newestDate = new Date(dailyHistoricalData[0].timestamp)
+          // console.log(`📅 Daily data range: ${oldestDate.toDateString()} to ${newestDate.toDateString()}`)
+        }
         
         // Calculate indicators separately for each timeframe
         const dailyIndicators = calculateIndicators(dailyHistoricalData, 'daily')

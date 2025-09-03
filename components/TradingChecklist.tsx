@@ -920,21 +920,24 @@ export default function TradingChecklist({ marketData }: TradingChecklistProps) 
 
   const analyses = evaluateSPXConditions(marketData)
   
-  // Debug logging for analyses
-  console.log('Analyses returned:', analyses.length)
+  // Debug logging
+  // console.log('Analyses returned:', analyses.length)
+  
+  // Log each analysis structure
   analyses.forEach((analysis, index) => {
-    console.log(`Analysis ${index}: ${analysis.title} - ${analysis.groups?.length || 0} groups`)
+    // console.log(`Analysis ${index}: ${analysis.title} - ${analysis.groups?.length || 0} groups`)
     analysis.groups?.forEach((group, groupIndex) => {
-      console.log(`  Group ${groupIndex}: ${group.title} - ${group.conditions?.length || 0} conditions`)
+      // console.log(`  Group ${groupIndex}: ${group.title} - ${group.conditions?.length || 0} conditions`)
     })
   })
   
+  // Log all conditions found
   const allConditions = analyses.flatMap(analysis => 
-    analysis.groups.flatMap(group => group.conditions)
+    analysis.groups?.flatMap(group => group.conditions || []) || []
   )
   
-  console.log('Total conditions found:', allConditions.length)
-  console.log('Condition IDs:', allConditions.map(c => c.id))
+  // console.log('Total conditions found:', allConditions.length)
+  // console.log('Condition IDs:', allConditions.map(c => c.id))
   
   // Group conditions by timeframe - Completely rewritten logic
   const timeframeGroups = {
@@ -968,9 +971,9 @@ export default function TradingChecklist({ marketData }: TradingChecklistProps) 
   })
   
   // Debug logging
-  console.log('Timeframe groups after extraction:')
+  // console.log('Timeframe groups after extraction:')
   Object.entries(timeframeGroups).forEach(([timeframe, conditions]) => {
-    console.log(`${timeframe}: ${conditions.length} conditions - ${conditions.map(c => c.id).join(', ')}`)
+    // console.log(`${timeframe}: ${conditions.length} conditions - ${conditions.map(c => c.id).join(', ')}`)
   })
   
   
