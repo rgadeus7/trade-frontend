@@ -1,4 +1,45 @@
 {
+  "symbols": {
+    "available": [
+      {
+        "display": "SPX",
+        "database": "$SPX.X",
+        "type": "index",
+        "description": "S&P 500 Index",
+        "color": "purple"
+      },
+      {
+        "display": "SPY",
+        "database": "SPY",
+        "type": "etf",
+        "description": "SPDR S&P 500 ETF Trust",
+        "color": "blue"
+      },
+      {
+        "display": "ES",
+        "database": "@ES",
+        "type": "futures",
+        "description": "E-mini S&P 500 Futures",
+        "color": "orange"
+      },
+      {
+        "display": "VIX",
+        "database": "$VIX.X",
+        "type": "index",
+        "description": "CBOE Volatility Index",
+        "color": "red"
+      },
+      {
+        "display": "GLD",
+        "database": "GLD",
+        "type": "etf",
+        "description": "SPDR Gold Trust",
+        "color": "gold"
+      }
+    ],
+    "default": "SPX",
+    "refreshInterval": 30000
+  },
   "indicatorCategories": {
     "technical": {
       "description": "Technical analysis indicators",

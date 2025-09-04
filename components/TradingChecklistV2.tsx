@@ -43,6 +43,7 @@ import KeyLevelsSummary from './KeyLevelsSummary'
 
 interface TradingChecklistProps {
   marketData: MarketData[]
+  selectedSymbol: string
 }
 
 interface ChecklistItem {
@@ -79,9 +80,10 @@ interface SummaryModalProps {
   onClose: () => void
   allConditions: ChecklistItem[]
   selectedStatus?: 'BULLISH' | 'BEARISH' | 'OVERBOUGHT' | 'OVERSOLD' | 'NO_BIAS'
+  currentSymbol: string
 }
 
-function SummaryModal({ isOpen, onClose, allConditions, selectedStatus }: SummaryModalProps) {
+function SummaryModal({ isOpen, onClose, allConditions, selectedStatus, currentSymbol }: SummaryModalProps) {
   if (!isOpen) return null
 
   // Filter conditions based on selected status
@@ -131,9 +133,9 @@ function SummaryModal({ isOpen, onClose, allConditions, selectedStatus }: Summar
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-hidden">
         <div className="flex items-center justify-between p-6 border-b border-gray-200">
-          <h2 className="text-xl font-bold text-gray-900">
-            {selectedStatus ? getStatusTitle(selectedStatus) : 'SPX Analysis Breakdown'}
-          </h2>
+                     <h2 className="text-xl font-bold text-gray-900">
+             {selectedStatus ? getStatusTitle(selectedStatus) : `${currentSymbol} Analysis Breakdown`}
+           </h2>
           <button
             onClick={onClose}
             className="text-gray-400 hover:text-gray-600 transition-colors"
@@ -144,17 +146,17 @@ function SummaryModal({ isOpen, onClose, allConditions, selectedStatus }: Summar
         
                  <div className="p-6 overflow-y-auto max-h-[calc(90vh-120px)]">
            {Object.entries(groupedByTimeframe).map(([timeframe, timeframeConditions]) => {
-             // Extract SPX price from the first condition's description
+             // Extract current symbol price from the first condition's description
              const firstCondition = timeframeConditions[0]
-             const spxPriceMatch = firstCondition?.description.match(/SPX: \$([\d,]+\.\d+)/)
-             const spxPrice = spxPriceMatch ? spxPriceMatch[1] : 'N/A'
+             const priceMatch = firstCondition?.description.match(/\$([\d,]+\.\d+)/)
+             const currentPrice = priceMatch ? priceMatch[1] : 'N/A'
              
              return (
                <div key={timeframe} className="mb-6 border border-gray-200 rounded-lg p-4">
                  <div className="flex items-center justify-between mb-3">
                    <h3 className="text-lg font-semibold text-gray-900">{timeframe} ({timeframeConditions.length})</h3>
                    <div className="text-sm font-mono text-gray-600 bg-gray-100 px-2 py-1 rounded">
-                     SPX: ${spxPrice}
+                     {currentSymbol}: ${currentPrice}
                    </div>
                  </div>
                  <div className="space-y-2">
@@ -982,7 +984,7 @@ const INDICATORS: {
             strength,
             description,
             category: INDICATORS.fibonacciRetracements.getCategory().category,
-            subcategory: INDICATORS.fibonacciRetracements.getCategory().subcategory
+                         subcategory: INDICATORS.fibonacciRetracements.getCategory().subcategory
           })
         })
         
@@ -1256,7 +1258,9 @@ const TIMEFRAMES = [
 ]
 
 // ===== MAIN COMPONENT =====
-export default function TradingChecklistV2({ marketData }: TradingChecklistProps) {
+export default function TradingChecklistV2({ marketData, selectedSymbol }: TradingChecklistProps) {
+  console.log(`📊 TradingChecklistV2 received marketData:`, marketData.length, `records for symbol: ${selectedSymbol}`)
+  
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set())
   const [selectedCategories, setSelectedCategories] = useState<Set<string>>(new Set(['technical', 'price-action']))
   const [selectedStatuses, setSelectedStatuses] = useState<Set<string>>(new Set(['BULLISH', 'BEARISH', 'NO_BIAS', 'OVERBOUGHT', 'OVERSOLD']))
@@ -1266,42 +1270,49 @@ export default function TradingChecklistV2({ marketData }: TradingChecklistProps
   const [showSummaryModal, setShowSummaryModal] = useState(false)
   const [selectedStatus, setSelectedStatus] = useState<'BULLISH' | 'BEARISH' | 'OVERBOUGHT' | 'OVERSOLD' | 'NO_BIAS' | undefined>(undefined)
 
-  // Get SPX data and fetch timeframe-specific data
-  const spxData = marketData.find(d => d.symbol === 'SPX')
+  // Get current symbol data and fetch timeframe-specific data
+  const currentSymbol = selectedSymbol
+  const currentSymbolData = marketData.find(d => d.symbol === currentSymbol)
   
-  // Fetch timeframe data when component mounts or SPX data changes
+  // Fetch timeframe data when component mounts or symbol data changes
   React.useEffect(() => {
+    console.log(`🔄 TradingChecklistV2 useEffect triggered:`, { currentSymbol, hasCurrentSymbolData: !!currentSymbolData, marketDataLength: marketData.length })
+    
     async function fetchTimeframeData() {
-      if (!spxData) {
+      if (!currentSymbolData) {
+        console.log(`❌ No currentSymbolData for ${currentSymbol}`)
         setLoading(false)
+        setTimeframeData(null) // Reset timeframe data when no symbol data
         return
       }
 
-             try {
-         setLoading(true)
-                   // console.log('Fetching timeframe-specific data for SPX...')
-         const data = await timeframeDataService.getAllTimeframesData('SPX', 500)
-         setTimeframeData(data)
-                   // console.log('Timeframe data fetched:', Object.keys(data).filter(k => data[k as keyof typeof data]))
-       } catch (error) {
-         console.error('Error fetching timeframe data:', error)
-       } finally {
-         setLoading(false)
-       }
+      try {
+        setLoading(true)
+        setTimeframeData(null) // Clear previous timeframe data while loading
+        console.log(`🚀 Fetching timeframe-specific data for ${currentSymbol}...`)
+        const data = await timeframeDataService.getAllTimeframesData(currentSymbol, 500)
+        setTimeframeData(data)
+        console.log(`✅ Timeframe data fetched for ${currentSymbol}:`, Object.keys(data).filter(k => data[k as keyof typeof data]))
+      } catch (error) {
+        console.error(`❌ Error fetching timeframe data for ${currentSymbol}:`, error)
+        setTimeframeData(null) // Reset on error
+      } finally {
+        setLoading(false)
+      }
     }
 
     fetchTimeframeData()
-  }, [spxData])
+  }, [selectedSymbol, currentSymbol, currentSymbolData, marketData]) // Add selectedSymbol to dependencies
 
-  if (!spxData) {
+  if (!currentSymbolData) {
     return (
       <div className="space-y-6">
         <div className="card">
           <div className="flex items-center justify-center py-12">
             <div className="text-center">
               <XCircle className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">No SPX Data</h3>
-              <p className="text-gray-600">SPX data not available for analysis.</p>
+              <h3 className="text-lg font-medium text-gray-900 mb-2">No {currentSymbol} Data</h3>
+              <p className="text-gray-600">{currentSymbol} data not available for analysis.</p>
             </div>
           </div>
         </div>
@@ -1453,23 +1464,36 @@ export default function TradingChecklistV2({ marketData }: TradingChecklistProps
   const overboughtCount = Object.values(subcategoryCounts).reduce((sum, counts) => sum + (counts.OVERBOUGHT || 0), 0)
   const oversoldCount = Object.values(subcategoryCounts).reduce((sum, counts) => sum + (counts.OVERSOLD || 0), 0)
 
+  // Helper function to replace hardcoded SPX references with current symbol
+  function replaceSymbolReferences(text: string, symbol: string): string {
+    return text.replace(/SPX:/g, `${symbol}:`)
+  }
+
+  // Process all conditions to replace symbol references
+  function processConditions(conditions: ChecklistItem[], symbol: string): ChecklistItem[] {
+    return conditions.map(condition => ({
+      ...condition,
+      description: replaceSymbolReferences(condition.description, symbol)
+    }))
+  }
+
   return (
     <div className="space-y-6">
              {/* Summary Card */}
        <div className="card bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200">
          <div className="flex items-center justify-between mb-4">
-           <div>
-             <h3 className="text-xl font-bold text-gray-900">SPX Analysis Summary</h3>
-             <p className="text-sm text-gray-600">
-               {filteredConditions.length} conditions across {selectedTimeframes.size} timeframes
-             </p>
-           </div>
-           <div className="text-right">
-             <div className="text-2xl font-bold text-blue-800">
-               ${timeframeData.daily?.currentPrice.toFixed(2) || 'N/A'}
-             </div>
-             <div className="text-xs text-gray-500">Current Price</div>
-           </div>
+                       <div>
+              <h3 className="text-xl font-bold text-gray-900">{currentSymbol} Analysis Summary</h3>
+              <p className="text-sm text-gray-600">
+                {filteredConditions.length} conditions across {selectedTimeframes.size} timeframes
+              </p>
+            </div>
+                       <div className="text-right">
+              <div className="text-2xl font-bold text-blue-800">
+                ${timeframeData.daily?.currentPrice.toFixed(2) || 'N/A'}
+              </div>
+              <div className="text-xs text-gray-500">{currentSymbol} Current Price</div>
+            </div>
          </div>
         
          <div className="grid grid-cols-2 md:grid-cols-6 gap-4 text-sm">
@@ -1671,18 +1695,19 @@ export default function TradingChecklistV2({ marketData }: TradingChecklistProps
              setShowSummaryModal(false)
              setSelectedStatus(undefined)
            }}
-           allConditions={allConditions}
+           allConditions={processConditions(allConditions, currentSymbol)}
            selectedStatus={selectedStatus}
+           currentSymbol={currentSymbol}
          />
 
-                 {/* Key Levels Summary */}
-         <KeyLevelsSummary 
-           allConditions={allConditions} 
-           currentPrice={timeframeData.daily?.currentPrice || 0} 
-         />
+                           {/* Key Levels Summary */}
+          <KeyLevelsSummary 
+            allConditions={processConditions(allConditions, currentSymbol)} 
+            currentPrice={timeframeData.daily?.currentPrice || 0} 
+          />
 
-         {/* Indicator Visualization */}
-         <IndicatorVisualization allConditions={allConditions} />
+                   {/* Indicator Visualization */}
+          <IndicatorVisualization allConditions={processConditions(allConditions, currentSymbol)} />
        </div>
      )
    }

@@ -25,9 +25,11 @@ export default function SignalDashboard({
   const [showChecklist, setShowChecklist] = useState(true)
   const hasLoadedRef = useRef(false)
 
-  const fetchMarketData = useCallback(async (forceRefresh = false) => {
+  const fetchMarketData = useCallback(async (symbol: string, forceRefresh = false) => {
     // Don't fetch if already loading
-    if (loading && !forceRefresh) return
+    if (loading && !forceRefresh) {
+      return
+    }
 
     try {
       if (forceRefresh) {
@@ -36,8 +38,8 @@ export default function SignalDashboard({
         setLoading(true)
       }
 
-      // Always fetch the currently selected symbol
-      const apiUrl = `/api/market-data?symbol=${selectedInstrument}`
+      // Always fetch the specified symbol
+      const apiUrl = `/api/market-data?symbol=${symbol}`
       
       // Fetch data from our database API with authentication
       const response = await fetch(apiUrl, {
@@ -51,10 +53,10 @@ export default function SignalDashboard({
         throw new Error(`HTTP error! status: ${response.status}`)
       }
       
-              const data = await response.json()
-        
-        // getDashboardData already returns an array, so use data directly
-        setMarketData(data)
+      const data = await response.json()
+      
+      // getDashboardData already returns an array, so use data directly
+      setMarketData(data)
       setLastUpdated(new Date())
     } catch (error) {
       console.error('Failed to fetch market data:', error)
@@ -62,26 +64,30 @@ export default function SignalDashboard({
       setLoading(false)
       setIsRefreshing(false)
     }
-  }, [loading, selectedInstrument])
+  }, [loading, session?.access_token])
 
   // Handle symbol change
   const handleSymbolChange = useCallback((symbol: string) => {
     setSelectedInstrument(symbol)
-    // Fetch data for the new symbol
-    fetchMarketData(false)
-  }, [fetchMarketData])
+    // Clear previous data immediately
+    setMarketData([])
+    setLastUpdated(null)
+    
+    // Fetch data for the new symbol - pass the symbol directly
+    fetchMarketData(symbol, false)
+  }, [fetchMarketData, marketData.length])
 
   // Initial load
   useEffect(() => {
     if (!hasLoadedRef.current) {
       hasLoadedRef.current = true
-      fetchMarketData()
+      fetchMarketData(selectedInstrument)
     }
-  }, [fetchMarketData])
+  }, [fetchMarketData, selectedInstrument])
 
   // Manual refresh function
   const handleRefresh = () => {
-    fetchMarketData(true)
+    fetchMarketData(selectedInstrument, true)
   }
 
   const getInstrumentColor = (instrumentType: string) => {
@@ -94,6 +100,8 @@ export default function SignalDashboard({
         return 'bg-orange-100 text-orange-800 border-orange-200'
       case 'VIX':
         return 'bg-red-100 text-red-800 border-red-200'
+      case 'GLD':
+        return 'bg-yellow-100 text-yellow-800 border-yellow-200'
       default:
         return 'bg-gray-100 text-gray-800 border-gray-200'
     }
@@ -189,58 +197,66 @@ export default function SignalDashboard({
         
         {filteredData.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            {filteredData[0].daily && (
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <h4 className="text-sm font-medium text-blue-700 mb-2">Daily Price</h4>
-                <p className="text-2xl font-bold text-blue-900">
-                  {formatCurrency(filteredData[0].daily.price)}
-                </p>
+            {/* Daily Price - Use timeframe data if available */}
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <h4 className="text-sm font-medium text-blue-700 mb-2">Daily Price</h4>
+              <p className="text-2xl font-bold text-blue-900">
+                {formatCurrency(filteredData[0].daily?.price || filteredData[0].sma89 || 0)}
+              </p>
+              {filteredData[0].daily?.change !== undefined ? (
                 <p className={`text-sm font-medium ${
                   filteredData[0].daily.change >= 0 ? 'text-success-600' : 'text-danger-600'
                 }`}>
                   {formatPercent(filteredData[0].daily.change)}
                 </p>
-              </div>
-            )}
+              ) : (
+                <p className="text-sm text-gray-500">Current Price</p>
+              )}
+            </div>
             
-            {filteredData[0].hourly && (
-              <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
-                <h4 className="text-sm font-medium text-purple-700 mb-2">2-Hour Price</h4>
-                <p className="text-2xl font-bold text-purple-900">
-                  {formatCurrency(filteredData[0].hourly.price)}
-                </p>
+            {/* 2-Hour Price - Use timeframe data if available */}
+            <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+              <h4 className="text-sm font-medium text-purple-700 mb-2">2-Hour Price</h4>
+              <p className="text-2xl font-bold text-purple-900">
+                {formatCurrency(filteredData[0].hourly?.price || filteredData[0].sma89 || 0)}
+              </p>
+              {filteredData[0].hourly?.change !== undefined ? (
                 <p className={`text-sm font-medium ${
                   filteredData[0].hourly.change >= 0 ? 'text-success-600' : 'text-danger-600'
                 }`}>
                   {formatPercent(filteredData[0].hourly.change)}
                 </p>
-              </div>
-            )}
+              ) : (
+                <p className="text-sm text-gray-500">Current Price</p>
+              )}
+            </div>
             
+            {/* 89 SMA - Use dynamic SMA data */}
             <div className="bg-green-50 border border-green-200 rounded-lg p-4">
               <h4 className="text-sm font-medium text-green-700 mb-2">89 SMA</h4>
               <p className="text-2xl font-bold text-green-900">
-                {formatCurrency(filteredData[0].sma89)}
+                {formatCurrency(filteredData[0].sma89 || filteredData[0].sma?.[89] || 0)}
               </p>
-              {filteredData[0].daily && filteredData[0].sma89 > 0 && (
+              {filteredData[0].daily && (filteredData[0].sma89 || filteredData[0].sma?.[89]) > 0 && (
                 <p className={`text-sm font-medium ${
-                  filteredData[0].daily.price > filteredData[0].sma89 ? 'text-success-600' : 'text-danger-600'
+                  filteredData[0].daily.price > (filteredData[0].sma89 || filteredData[0].sma?.[89]) ? 'text-success-600' : 'text-danger-600'
                 }`}>
-                  {filteredData[0].daily.price > filteredData[0].sma89 ? 'Above SMA' : 'Below SMA'}
+                  {filteredData[0].daily.price > (filteredData[0].sma89 || filteredData[0].sma?.[89]) ? 'Above SMA' : 'Below SMA'}
                 </p>
               )}
             </div>
             
+            {/* 200 SMA - Use dynamic SMA data */}
             <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
               <h4 className="text-sm font-medium text-orange-700 mb-2">200 SMA</h4>
               <p className="text-2xl font-bold text-orange-900">
-                {formatCurrency(filteredData[0].sma200)}
+                {formatCurrency(filteredData[0].sma200 || filteredData[0].sma?.[200] || 0)}
               </p>
-              {filteredData[0].daily && filteredData[0].sma200 > 0 && (
+              {filteredData[0].daily && (filteredData[0].sma200 || filteredData[0].sma?.[200]) > 0 && (
                 <p className={`text-sm font-medium ${
-                  filteredData[0].daily.price > filteredData[0].sma200 ? 'text-success-600' : 'text-danger-600'
+                  filteredData[0].daily.price > (filteredData[0].sma200 || filteredData[0].sma?.[200]) ? 'text-success-600' : 'text-danger-600'
                 }`}>
-                  {filteredData[0].daily.price > filteredData[0].sma200 ? 'Above SMA' : 'Below SMA'}
+                  {filteredData[0].daily.price > (filteredData[0].sma200 || filteredData[0].sma?.[200]) ? 'Above SMA' : 'Below SMA'}
                 </p>
               )}
             </div>
@@ -249,13 +265,24 @@ export default function SignalDashboard({
           <div className="text-center py-8">
             <BarChart3 className="h-12 w-12 text-gray-400 mx-auto mb-4" />
             <p className="text-gray-600">No data available for {selectedInstrument}</p>
+            <p className="text-sm text-gray-500 mt-2">
+              Requested symbol: {selectedInstrument} → Database symbol: {
+                selectedInstrument === 'SPX' ? '$SPX.X' : 
+                selectedInstrument === 'VIX' ? '$VIX.X' : 
+                selectedInstrument === 'ES' ? '@ES' : 
+                selectedInstrument
+              }
+            </p>
+            <p className="text-xs text-gray-400 mt-2">
+              Check browser console for detailed error information
+            </p>
           </div>
         )}
       </div>
 
       {/* Conditional Content Display */}
       {showChecklist ? (
-        <TradingChecklist marketData={filteredData} />
+        <TradingChecklist key={selectedInstrument} marketData={filteredData} selectedSymbol={selectedInstrument} />
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {filteredData.length === 0 ? (

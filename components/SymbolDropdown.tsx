@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { ChevronDown, BarChart3 } from 'lucide-react'
 
 interface SymbolDropdownProps {
@@ -9,21 +9,88 @@ interface SymbolDropdownProps {
   className?: string
 }
 
-const SYMBOLS = [
-  { value: 'SPX', label: 'SPX', description: 'S&P 500 Index' },
-  { value: 'SPY', label: 'SPY', description: 'SPDR S&P 500 ETF' },
-  { value: 'ES', label: 'ES', description: 'E-mini S&P 500 Futures' },
-  { value: 'VIX', label: 'VIX', description: 'Volatility Index' }
-]
+interface SymbolConfig {
+  value: string
+  label: string
+  description: string
+}
 
 export default function SymbolDropdown({ selectedSymbol, onSymbolChange, className = '' }: SymbolDropdownProps) {
   const [isOpen, setIsOpen] = useState(false)
+  const [symbols, setSymbols] = useState<SymbolConfig[]>([])
+  const [loading, setLoading] = useState(true)
 
-  const selectedSymbolData = SYMBOLS.find(s => s.value === selectedSymbol)
+  // Load symbols from config file
+  useEffect(() => {
+    async function loadSymbols() {
+      try {
+        // console.log('🔄 Loading symbols from config...')
+        const response = await fetch('/api/config/symbols')
+        // console.log('📡 API response status:', response.status)
+        
+        if (response.ok) {
+          const data = await response.json()
+          // console.log('📊 API response data:', data)
+          
+          // Ensure symbols is always an array
+          const symbolsArray = Array.isArray(data.symbols) ? data.symbols : []
+          // console.log('✅ Setting symbols:', symbolsArray)
+          setSymbols(symbolsArray)
+        } else {
+          // console.error('❌ Failed to load symbols from config, status:', response.status)
+          // Fallback to default symbols
+          setSymbols([
+            { value: 'SPX', label: 'SPX', description: 'S&P 500 Index' },
+            { value: 'SPY', label: 'SPY', description: 'SPDR S&P 500 ETF' },
+            { value: 'ES', label: 'ES', description: 'E-mini S&P 500 Futures' },
+            { value: 'VIX', label: 'VIX', description: 'CBOE Volatility Index' },
+            { value: 'GLD', label: 'GLD', description: 'SPDR Gold Trust' }
+          ])
+        }
+      } catch (error) {
+        // console.error('❌ Error loading symbols:', error)
+        // Fallback to default symbols
+        setSymbols([
+          { value: 'SPX', label: 'SPX', description: 'S&P 500 Index' },
+          { value: 'SPY', label: 'SPY', description: 'SPDR S&P 500 ETF' },
+          { value: 'ES', label: 'ES', description: 'E-mini S&P 500 Futures' },
+          { value: 'VIX', label: 'VIX', description: 'CBOE Volatility Index' },
+          { value: 'GLD', label: 'GLD', description: 'SPDR Gold Trust' }
+        ])
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    loadSymbols()
+  }, [])
+
+  // Ensure symbols is always an array
+  const safeSymbols = Array.isArray(symbols) ? symbols : []
+  // console.log('🔍 Current symbols state:', { symbols, safeSymbols, isArray: Array.isArray(symbols) })
+
+  const selectedSymbolData = safeSymbols.find(s => s.value === selectedSymbol)
 
   const handleSymbolSelect = (symbol: string) => {
     onSymbolChange(symbol)
     setIsOpen(false)
+  }
+
+  if (loading) {
+    return (
+      <div className={`relative ${className}`}>
+        <button
+          disabled
+          className="flex items-center justify-between w-full px-4 py-2 text-sm font-medium text-gray-400 bg-gray-100 border border-gray-300 rounded-lg cursor-not-allowed"
+        >
+          <div className="flex items-center space-x-2">
+            <BarChart3 className="h-4 w-4 text-gray-400" />
+            <span>Loading symbols...</span>
+          </div>
+          <ChevronDown className="h-4 w-4 text-gray-400" />
+        </button>
+      </div>
+    )
   }
 
   return (
@@ -47,7 +114,7 @@ export default function SymbolDropdown({ selectedSymbol, onSymbolChange, classNa
       {isOpen && (
         <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg">
           <div className="py-1">
-            {SYMBOLS.map((symbol) => (
+            {safeSymbols.map((symbol) => (
               <button
                 key={symbol.value}
                 onClick={() => handleSymbolSelect(symbol.value)}

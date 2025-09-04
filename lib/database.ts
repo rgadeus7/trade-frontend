@@ -379,29 +379,44 @@ export function calculateIndicators(data: MarketData[], timeframe: string = 'dai
 // Get data for dashboard display with on-demand indicator calculation
 export async function getDashboardData(symbolFilter?: string) {
   try {
+    // console.log(`🚀 getDashboardData called with symbolFilter: ${symbolFilter}`)
+    
     // Map display symbols to actual database symbols
     const symbolMap = {
       'SPY': 'SPY',
       'SPX': '$SPX.X',
       'ES': '@ES',
-      'VIX': '$VIX.X'
+      'VIX': '$VIX.X',
+      'GLD': 'GLD'
     }
+    
+    // console.log(`🗺️ Symbol mapping:`, symbolMap)
     
     // Determine which symbols to fetch
     const symbolsToFetch = symbolFilter 
       ? [symbolFilter] 
-      : ['SPX', 'SPY', 'ES', 'VIX']
+      : ['SPX', 'SPY', 'ES', 'VIX', 'GLD']
+    
+    // console.log(`📊 Symbols to fetch:`, symbolsToFetch)
     
     // Calculate indicators on-demand for each symbol
     const dashboardData = await Promise.all(
       symbolsToFetch.map(async (displaySymbol) => {
         const dbSymbol = symbolMap[displaySymbol as keyof typeof symbolMap]
+        // console.log(`🔍 Processing ${displaySymbol} -> ${dbSymbol}`)
         
         // Get historical data for all timeframes (increased to 500 records for better indicator accuracy)
         const dailyHistoricalData = await getMarketData(dbSymbol, 'daily', 500)
         const hourlyHistoricalData = await getMarketData(dbSymbol, '2h', 500)
         const weeklyHistoricalData = await getMarketData(dbSymbol, 'weekly', 500)
         const monthlyHistoricalData = await getMarketData(dbSymbol, 'monthly', 500)
+        
+        // console.log(`📈 ${displaySymbol} data counts:`, {
+        //   daily: dailyHistoricalData.length,
+        //   hourly: hourlyHistoricalData.length,
+        //   weekly: weeklyHistoricalData.length,
+        //   monthly: monthlyHistoricalData.length
+        // })
         
         // Validate data availability for accurate calculations
         // console.log(`📈 Data validation for ${displaySymbol}:`)
