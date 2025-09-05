@@ -59,4 +59,34 @@
     0%, 100% { transform: translateY(0px); }
     50% { transform: translateY(-10px); }
   }
+  
+  /* Custom scrollbar styles */
+  .custom-scrollbar {
+    scrollbar-width: auto; /* Use default width for better visibility */
+    scrollbar-color: #6b7280 #374151;
+    overflow-y: auto !important; /* Allow auto scrollbar */
+  }
+  
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 16px; /* Make it wider for better visibility */
+  }
+  
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: #374151;
+    border-radius: 8px;
+  }
+  
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: #6b7280;
+    border-radius: 8px;
+    border: 3px solid #374151; /* Add border for better visibility */
+  }
+  
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: #9ca3af;
+  }
+  
+  .custom-scrollbar::-webkit-scrollbar-corner {
+    background: #374151;
+  }
 }

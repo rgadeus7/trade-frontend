@@ -10,7 +10,8 @@ import {
   Settings, 
   HelpCircle,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Brain
 } from 'lucide-react'
 import { useState } from 'react'
 
@@ -23,6 +24,7 @@ export default function Sidebar({ isOpen }: SidebarProps) {
 
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: Home },
+    { id: 'scenarios', label: 'Trading Scenarios', icon: Brain },
     // Temporarily hidden - uncomment when ready to implement
     // { id: 'trading', label: 'Trading', icon: TrendingUp },
     // { id: 'analytics', label: 'Analytics', icon: BarChart3 },

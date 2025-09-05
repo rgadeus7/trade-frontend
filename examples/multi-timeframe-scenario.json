@@ -1,0 +1,63 @@
+{
+  "id": "multi-timeframe-breakout",
+  "name": "Multi-Timeframe Breakout",
+  "description": "Price breaks above 4H SMA while 1H RSI shows momentum",
+  "category": "day-trading",
+  "priority": 1,
+  "probability": 75,
+  "riskLevel": "MEDIUM",
+  "timeHorizon": "intraday",
+  "requiredIndicators": ["sma", "rsi"],
+  "visualization": "mind-map",
+  "conditions": [
+    {
+      "id": "4h-sma-breakout",
+      "field": "close",
+      "operator": "gt",
+      "value": "sma_20",
+      "timeframe": "4h",
+      "lookback": 1,
+      "description": "Price closes above 4H SMA 20",
+      "weight": 1.0,
+      "isRequired": true,
+      "isActive": true
+    },
+    {
+      "id": "1h-rsi-momentum",
+      "field": "rsi",
+      "operator": "gt",
+      "value": "60",
+      "timeframe": "1h",
+      "lookback": 1,
+      "description": "1H RSI above 60 showing momentum",
+      "weight": 0.8,
+      "isRequired": true,
+      "isActive": true
+    },
+    {
+      "id": "daily-trend-confirmation",
+      "field": "close",
+      "operator": "gt",
+      "value": "sma_50",
+      "timeframe": "1d",
+      "lookback": 1,
+      "description": "Daily close above SMA 50 for trend confirmation",
+      "weight": 0.6,
+      "isRequired": false,
+      "isActive": true
+    }
+  ],
+  "tradeZones": [
+    {
+      "id": "breakout-entry",
+      "type": "buy",
+      "entryPrice": "4h_sma_20 * 1.001",
+      "stopLoss": "4h_sma_20 * 0.995",
+      "takeProfit": "4h_sma_20 * 1.02",
+      "quantity": 100,
+      "description": "Buy on 4H SMA breakout with tight stop",
+      "isActive": true,
+      "conditions": ["4h-sma-breakout", "1h-rsi-momentum"]
+    }
+  ]
+}

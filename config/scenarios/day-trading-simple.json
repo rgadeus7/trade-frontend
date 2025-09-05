@@ -1,0 +1,169 @@
+{
+  "id": "day-trading-simple",
+  "name": "Day Trading",
+  "description": "Intraday trading scenarios based on market open conditions and price action",
+  "icon": "sun",
+  "color": "#3B82F6",
+  "scenarios": [
+    {
+      "id": "open-above-yesterday-high",
+      "name": "Open Above Yesterday High",
+      "description": "Market opens above yesterday's high, indicating potential breakout or gap continuation",
+      "probability": 65,
+      "riskLevel": "MEDIUM",
+      "filters": [
+        {
+          "id": "open-above-pdh",
+          "field": "1D_P0_open",
+          "operator": "gt",
+          "value": "1D_P1_high",
+          "description": "Today's open above previous day high"
+        }
+      ],
+      "tradeZones": [
+        {
+          "id": "pdh-high-support",
+          "type": "BUY",
+          "entryPrice": "1D_P1_high",
+          "stopLoss": "1D_P1_high * 0.99",
+          "takeProfit": "1D_P1_high * 1.01",
+          "description": "Buy at previous day high level"
+        }, 
+        {
+          "id": "pdh-low-support",
+          "type": "BUY",
+          "entryPrice": "1D_P1_low",
+          "stopLoss": "1D_P1_low * 0.99",
+          "takeProfit": "1D_P1_high",
+          "description": "Buy at previous day low level"
+        }
+      ]
+    },
+    {
+      "id": "open-below-yesterday-low",
+      "name": "Open Below Yesterday Low",
+      "description": "Market opens below yesterday's low, indicating potential breakdown or gap continuation",
+      "probability": 65,
+      "riskLevel": "MEDIUM",
+      "filters": [
+        {
+          "id": "open-below-pdl",
+          "field": "1D_P0_open",
+          "operator": "lt",
+          "value": "1D_P1_low",
+          "description": "Today's open below previous day low"
+        }
+      ],
+      "tradeZones": [
+        {
+          "id": "pdl-resistance",
+          "type": "SELL",
+          "entryPrice": "1D_P1_low",
+          "stopLoss": "1D_P1_low * 1.01",
+          "takeProfit": "1D_P1_low * 0.99",
+          "description": "Sell at previous day low level"
+        }
+      ]
+    },
+    {
+      "id": "daily-2h-sma-alignment",
+      "name": "Daily & 2H SMA Alignment",
+      "description": "Price above Daily 89 SMA and within 1% of 2H 89 SMA for potential buy setup",
+      "probability": 70,
+      "riskLevel": "LOW",
+      "filters": [
+        {
+          "id": "daily-sma-above",
+          "field": "1D_P0_close",
+          "operator": "gt",
+          "value": "1D_P0_sma_89",
+          "description": "Price above Daily 89 SMA"
+        },
+        {
+          "id": "2h-sma-within-1-percent",
+          "field": "2H_P0_close",
+          "operator": "between",
+          "minValue": "2H_P0_sma_89 * 0.99",
+          "maxValue": "2H_P0_sma_89 * 1.01",
+          "description": "Price within 1% of 2H 89 SMA"
+        }
+      ],
+      "tradeZones": [
+        {
+          "id": "sma-alignment-buy",
+          "type": "BUY",
+          "entryPrice": "2H_P0_close",
+          "stopLoss": "2H_P0_sma_89 * 0.98",
+          "takeProfit": "2H_P0_sma_89 * 1.02",
+          "description": "Buy at current price with SMA-based levels"
+        }
+      ]
+    },
+    {
+      "id": "rsi-oversold-bounce",
+      "name": "RSI Oversold Bounce",
+      "description": "Price bounces from oversold RSI levels with volume confirmation",
+      "probability": 60,
+      "riskLevel": "MEDIUM",
+      "filters": [
+        {
+          "id": "rsi-oversold",
+          "field": "1D_P0_rsi_14",
+          "operator": "lt",
+          "value": 30,
+          "description": "RSI below 30 (oversold)"
+        },
+        {
+          "id": "volume-confirmation",
+          "field": "1D_P0_volume",
+          "operator": "gt",
+          "value": "1D_P1_volume",
+          "description": "Volume higher than previous day"
+        }
+      ],
+      "tradeZones": [
+        {
+          "id": "oversold-bounce-buy",
+          "type": "BUY",
+          "entryPrice": "1D_P0_close",
+          "stopLoss": "1D_P0_low",
+          "takeProfit": "1D_P1_high",
+          "description": "Buy on RSI oversold bounce"
+        }
+      ]
+    },
+    {
+      "id": "bollinger-squeeze-breakout",
+      "name": "Bollinger Squeeze Breakout",
+      "description": "Price breaks out of Bollinger Band squeeze with volume",
+      "probability": 55,
+      "riskLevel": "HIGH",
+      "filters": [
+        {
+          "id": "bb-squeeze",
+          "field": "1D_P0_bb_upper",
+          "operator": "subtract",
+          "value": "1D_P0_bb_lower",
+          "description": "Bollinger Bands are tight (squeeze)"
+        },
+        {
+          "id": "breakout-direction",
+          "field": "1D_P0_close",
+          "operator": "gt",
+          "value": "1D_P0_bb_upper",
+          "description": "Price breaks above upper Bollinger Band"
+        }
+      ],
+      "tradeZones": [
+        {
+          "id": "bb-breakout-buy",
+          "type": "BUY",
+          "entryPrice": "1D_P0_bb_upper",
+          "stopLoss": "1D_P0_bb_middle",
+          "takeProfit": "1D_P0_bb_upper * 1.02",
+          "description": "Buy on Bollinger Band breakout"
+        }
+      ]
+    }
+  ]
+}
